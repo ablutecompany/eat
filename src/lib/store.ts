@@ -56,6 +56,7 @@ interface AppStore {
   toggleSlotLock: (slotId: string) => void
   swapMealSlot: (slotId: string, newRecipeId: string) => void
   regeneratePlan: () => void
+  addRecipeToNextFreeSlot: (recipeId: string) => void
 
   // Shopping
   shoppingItems: ShoppingItem[]
@@ -82,6 +83,7 @@ interface AppStore {
   // Participation
   updateMealParticipants: (slotId: string, participantIds: string[]) => void
   toggleIngredientAvoidance: (ingredientId: string, memberIds: string[]) => void
+  toggleIngredientExclusion: (ingredientId: string, memberIds: string[]) => void
   recalculateShoppingList: () => void
   isSettingsOpen: boolean
   setSettingsOpen: (open: boolean) => void
@@ -91,8 +93,8 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set: any, get: any) => ({
       // Onboarding
-      onboardingComplete: false,
-      onboardingStep: 0,
+      onboardingComplete: false as boolean,
+      onboardingStep: 0 as number,
       setOnboardingComplete: (val: boolean) => set({ onboardingComplete: val }),
       setOnboardingStep: (step: number) => set({ onboardingStep: step }),
 
@@ -329,6 +331,36 @@ export const useAppStore = create<AppStore>()(
         get().recalculateShoppingList()
         get().showToast('Participantes da refeição atualizados')
       },
+      addRecipeToNextFreeSlot: (recipeId: string) => {
+        const state = get()
+        const usedRecipeIds = state.currentPlan.slots.map((s: MealSlot) => s.recipeId)
+        if (usedRecipeIds.includes(recipeId)) {
+          get().showToast('Esta receita já está no plano desta semana')
+          return
+        }
+        const recipe = state.recipes.find((r: any) => r.id === recipeId)
+        if (!recipe) return
+        const mealType = recipe.mealType[0]
+        const activeMembers = state.members.filter((m: any) => m.isActive)
+        const participantIds = activeMembers.map((m: any) => m.id)
+        // Find first slot of right mealType that has null/empty recipeId or pick first of that type
+        const targetSlot = state.currentPlan.slots.find((s: MealSlot) => s.mealType === mealType && !usedRecipeIds.includes(s.recipeId))
+          || state.currentPlan.slots.find((s: MealSlot) => s.mealType === mealType)
+        if (!targetSlot) {
+          get().showToast('Não há slots disponíveis para este tipo de refeição')
+          return
+        }
+        set((s: any) => ({
+          currentPlan: {
+            ...s.currentPlan,
+            slots: s.currentPlan.slots.map((slot: MealSlot) =>
+              slot.id === targetSlot.id ? { ...slot, recipeId, participantIds } : slot
+            )
+          }
+        }))
+        get().recalculateShoppingList()
+        get().showToast(`${recipe.title} adicionada ao plano — ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'][targetSlot.day]}`)
+      },
       isSettingsOpen: false,
       setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),
       toggleIngredientAvoidance: (ingredientId: string, memberIds: string[]) => {
@@ -363,6 +395,43 @@ export const useAppStore = create<AppStore>()(
           })
         }))
         get().showToast('Preferências de ingredientes atualizadas')
+      },
+      toggleIngredientExclusion: (ingredientId: string, memberIds: string[]) => {
+        set((state: any) => {
+          const ingredient = state.ingredients.find((i: any) => i.id === ingredientId)
+          const ingredientName = ingredient?.name || ''
+          return {
+            ingredients: state.ingredients.map((ing: any) =>
+              ing.id === ingredientId ? {
+                ...ing,
+                memberIds: state.members.filter((m: any) => !memberIds.includes(m.id)).map((m: any) => m.id),
+                compatibilityType: memberIds.length > 0 ? 'excluído' : 'comum'
+              } : ing
+            ),
+            members: state.members.map((m: any) => {
+              if (memberIds.includes(m.id)) {
+                return {
+                  ...m,
+                  preferences: {
+                    ...m.preferences,
+                    allergies: Array.from(new Set([...m.preferences.allergies, ingredientName])),
+                    excludedIngredients: Array.from(new Set([...(m.preferences.excludedIngredients || []), ingredientName])),
+                  }
+                }
+              } else {
+                return {
+                  ...m,
+                  preferences: {
+                    ...m.preferences,
+                    allergies: m.preferences.allergies.filter((a: string) => a !== ingredientName),
+                    excludedIngredients: (m.preferences.excludedIngredients || []).filter((e: string) => e !== ingredientName),
+                  }
+                }
+              }
+            })
+          }
+        })
+        get().showToast('Ingrediente marcado como excluído para os membros selecionados')
       },
       recalculateShoppingList: () => {
         const state = get()

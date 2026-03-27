@@ -3,16 +3,18 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { ArrowLeftRight, ThumbsDown, Trash2 } from 'lucide-react'
+import { ThumbsDown, ShieldOff } from 'lucide-react'
 import AvoidMemberModal from '../AvoidMemberModal'
+import ExcludeIngredientModal from '../ExcludeIngredientModal'
 import { Ingredient } from '@/lib/types'
 
 const FILTERS = ['Todos', 'Comuns', 'Específicos', 'A evitar / Excluídos']
 
 export default function IngredientsScreen() {
-  const { ingredients, members, showToast, toggleIngredientAvoidance } = useAppStore()
+  const { ingredients, members, showToast, toggleIngredientAvoidance, toggleIngredientExclusion } = useAppStore()
   const [activeFilter, setActiveFilter] = useState('Todos')
   const [avoidingIngredient, setAvoidingIngredient] = useState<Ingredient | null>(null)
+  const [excludingIngredient, setExcludingIngredient] = useState<Ingredient | null>(null)
 
   const filtered = useMemo(() => {
     if (activeFilter === 'Todos') return ingredients
@@ -105,24 +107,19 @@ export default function IngredientsScreen() {
               <div className="flex flex-col gap-1.5 ml-2">
                 <motion.button
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => showToast(`${ingredient.name} marcado para substituição`)}
-                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#f3f4f3] text-[#5d605f]"
-                >
-                  <ArrowLeftRight size={12} />
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
                   onClick={() => setAvoidingIngredient(ingredient)}
-                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#f3f4f3] text-[#5d605f]"
+                  title="A evitar"
+                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#f8dfc0] text-[#6e5c44]"
                 >
                   <ThumbsDown size={12} />
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => showToast(`${ingredient.name} será substituído no próximo plano`)}
-                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#f3f4f3] text-[#5d605f]"
+                  onClick={() => setExcludingIngredient(ingredient)}
+                  title="Alérgico ou totalmente excluído"
+                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#ffd7d6] text-[#a83836]"
                 >
-                  <Trash2 size={12} />
+                  <ShieldOff size={12} />
                 </motion.button>
               </div>
             </div>
@@ -140,6 +137,16 @@ export default function IngredientsScreen() {
         onConfirm={(memberIds) => {
           if (avoidingIngredient) {
             toggleIngredientAvoidance(avoidingIngredient.id, memberIds)
+          }
+        }}
+      />
+      <ExcludeIngredientModal
+        ingredientName={excludingIngredient?.name || ''}
+        isOpen={!!excludingIngredient}
+        onClose={() => setExcludingIngredient(null)}
+        onConfirm={(memberIds) => {
+          if (excludingIngredient) {
+            toggleIngredientExclusion(excludingIngredient.id, memberIds)
           }
         }}
       />

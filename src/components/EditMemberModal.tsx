@@ -147,7 +147,10 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
 
           {/* Allergies */}
           <div>
-            <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-2">Alergias / Restrições Totais</label>
+            <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-2">Alérgico ou totalmente excluído</label>
+            <p className="text-[10px] text-[#a83836] mb-2 uppercase tracking-wide font-medium">
+              Exclusão absoluta — nunca entra em receitas, sugestões ou compras
+            </p>
             <div className="flex flex-wrap gap-2 mb-3">
               {allergies.map((a, i) => (
                 <span key={i} className="flex items-center gap-1 bg-[#ffd7d6] text-[#a83836] px-3 py-1.5 rounded-full text-xs font-bold">
@@ -177,9 +180,12 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
 
           {/* Dislikes (Quick reference) */}
           <div>
-            <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-2">A evitar (Ingredientes)</label>
+            <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-2">A evitar</label>
+            <p className="text-[10px] text-[#6e5c44] mb-2 uppercase tracking-wide font-medium">
+              Penaliza fortemente no plano, mas não exclui 100%
+            </p>
             <p className="text-[10px] text-[#b0b2b1] mb-2 uppercase tracking-wide">
-              Estes são sincronizados com a página de Ingredientes
+              Sincronizados com a página de Ingredientes
             </p>
             <div className="flex flex-wrap gap-2">
               {dislikes.map((d, i) => (

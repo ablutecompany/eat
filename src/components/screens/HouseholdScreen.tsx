@@ -80,12 +80,12 @@ export default function HouseholdScreen() {
                       ))}
                       {member.preferences.allergies.length > 0 && (
                         <span className="text-[10px] bg-[#ffd7d6] text-[#a83836] px-2 py-0.5 rounded-full">
-                          Alergia: {member.preferences.allergies[0]}
+                          Excluído: {member.preferences.allergies[0]}
                         </span>
                       )}
                       {member.preferences.dislikes.length > 0 && (
-                        <span className="text-[10px] bg-[#f3f4f3] text-[#5d605f] px-2 py-0.5 rounded-full">
-                          Não gosta: {member.preferences.dislikes[0]}
+                        <span className="text-[10px] bg-[#f8dfc0] text-[#6e5c44] px-2 py-0.5 rounded-full">
+                          A evitar: {member.preferences.dislikes[0]}
                         </span>
                       )}
                     </div>

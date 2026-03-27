@@ -11,12 +11,24 @@ interface Props {
 }
 
 export default function SwapMealDrawer({ slot, onClose }: Props) {
-  const { recipes, members, swapMealSlot } = useAppStore()
+  const { recipes, members, currentPlan, swapMealSlot } = useAppStore()
 
   if (!slot) return null
 
-  // Find alternatives: same meal type, different recipe
+  // Recipes already used in other slots (excluding current slot)
+  const usedRecipeIds = new Set(
+    currentPlan.slots
+      .filter((s: MealSlot) => s.id !== slot.id)
+      .map((s: MealSlot) => s.recipeId)
+  )
+
+  // Find alternatives: same meal type, different recipe, not already in plan
   const alternatives = recipes.filter(
+    (r) => r.mealType.includes(slot.mealType) && r.id !== slot.recipeId && !usedRecipeIds.has(r.id)
+  )
+
+  // Fallback if all recipes are used — show same-type recipes excluding only current
+  const displayAlts = alternatives.length > 0 ? alternatives : recipes.filter(
     (r) => r.mealType.includes(slot.mealType) && r.id !== slot.recipeId
   )
 
@@ -70,7 +82,7 @@ export default function SwapMealDrawer({ slot, onClose }: Props) {
 
             {/* Alternatives list */}
             <div className="overflow-y-auto flex-1 p-5 space-y-3 pb-8 scrollbar-hide">
-              {alternatives.map((recipe) => {
+              {displayAlts.map((recipe) => {
                 const compatCount = activeMembers.filter((m) => {
                   const c = recipe.compatibilityByMember.find((cb) => cb.memberId === m.id)
                   return c?.status === 'compatível'

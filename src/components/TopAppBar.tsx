@@ -1,20 +1,20 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Settings } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
-const TAB_TITLES: Record<string, string> = {
-  plano: 'Plano desta semana',
-  receitas: 'Receitas',
-  ingredientes: 'Ingredientes',
-  compras: 'Lista de Compras',
-  agregado: 'Agregado',
-  perfil: 'Perfil',
-}
-
 export default function TopAppBar() {
-  const { activeTab, household, setSettingsOpen } = useAppStore()
+  const { activeTab, household, setActiveTab } = useAppStore()
+
+  const initials = household.name
+    .split(' ')
+    .map((w: string) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
+  // Hide the top bar on the Perfil screen (it has its own header feel)
+  if (activeTab === 'perfil') return null
 
   return (
     <header className="sticky top-0 z-40 glass border-b border-[#b0b2b1]/15 px-5 pt-safe">
@@ -25,12 +25,12 @@ export default function TopAppBar() {
             {household.name}
           </span>
         </div>
-        <motion.button 
+        <motion.button
           whileTap={{ scale: 0.92 }}
-          onClick={() => setSettingsOpen(true)}
-          className="w-8 h-8 rounded-full bg-[#f3f4f3] flex items-center justify-center text-[#5d605f]"
+          onClick={() => setActiveTab('perfil')}
+          className="w-9 h-9 rounded-2xl bg-[#c5ebd7] flex items-center justify-center text-[#446656] font-bold text-sm shadow-ambient-sm"
         >
-          <Settings size={18} />
+          {initials}
         </motion.button>
       </div>
     </header>

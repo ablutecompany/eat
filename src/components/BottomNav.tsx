@@ -8,7 +8,6 @@ import {
   Leaf,
   ShoppingCart,
   Users,
-  User,
 } from 'lucide-react'
 
 const TABS = [
@@ -17,7 +16,6 @@ const TABS = [
   { id: 'ingredientes', label: 'Ingredientes', icon: Leaf },
   { id: 'compras', label: 'Compras', icon: ShoppingCart },
   { id: 'agregado', label: 'Agregado', icon: Users },
-  { id: 'perfil', label: 'Perfil', icon: User },
 ]
 
 export default function BottomNav() {

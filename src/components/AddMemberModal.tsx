@@ -49,6 +49,7 @@ export default function AddMemberModal({ onClose }: Props) {
       colorName: selectedColor.name,
       type,
       isActive: true,
+      portionFactor: type === 'adulto' ? 1.0 : type === 'criança' ? 0.65 : 1.0,
       preferences: {
         memberId: `m-${Date.now()}`,
         dietTags: selectedTags,

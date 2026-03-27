@@ -14,7 +14,7 @@ const GOAL_LABELS: Record<string, string> = {
 }
 
 export default function ProfileScreen() {
-  const { household, updateHousehold, members, regeneratePlan, isRegenerating, showToast } = useAppStore()
+  const { household, updateHousehold, members, regeneratePlan, isRegenerating, showToast, subscription, dataSource } = useAppStore()
   const [budget, setBudget] = useState(household.budgetWeekly)
 
   const activeCount = members.filter((m) => m.isActive).length
@@ -38,7 +38,7 @@ export default function ProfileScreen() {
             <p className="text-xs text-[#446656]">{GOAL_LABELS[household.goal]}</p>
           </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 mb-3">
           {members.filter(m => m.isActive).map((m) => (
             <div key={m.id} className="flex flex-col items-center gap-1">
               <div
@@ -51,6 +51,14 @@ export default function ProfileScreen() {
             </div>
           ))}
         </div>
+        {dataSource && (
+          <div className="flex items-center gap-2 pt-3 border-t border-[#446656]/20">
+            <div className="w-2 h-2 rounded-full bg-[#446656]" />
+            <span className="text-xs text-[#446656] font-medium">
+              {dataSource.sourceName === 'ablute_wellness' ? 'ablute_ wellness' : dataSource.sourceName} · sincronizado
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Metas do Agregado */}
@@ -180,7 +188,12 @@ export default function ProfileScreen() {
               </div>
               <div>
                 <p className="text-sm font-medium text-[#303333]">Assinatura</p>
-                <p className="text-xs text-[#446656] font-medium">Plano Familiar Premium</p>
+                <p className="text-xs text-[#446656] font-medium">
+                  {subscription?.planType === 'semanal' ? 'Plano Semanal' :
+                   subscription?.planType === 'mensal' ? 'Plano Mensal' :
+                   'Plano Premium'}
+                  {subscription?.isActive ? ' · Ativo' : ' · Inativo'}
+                </p>
               </div>
             </div>
             <ChevronRight size={14} className="text-[#b0b2b1]" />

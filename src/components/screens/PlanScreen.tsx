@@ -35,6 +35,7 @@ export default function PlanScreen() {
     regeneratePlan,
     isRegenerating,
     setSettingsOpen,
+    subscription,
   } = useAppStore()
 
   const [swapSlot, setSwapSlot] = useState<MealSlot | null>(null)
@@ -43,10 +44,8 @@ export default function PlanScreen() {
 
   const daySlots = currentPlan.slots.filter((s) => s.day === activeDayIndex)
   const activeMembers = members.filter((m) => m.isActive)
-
   const today = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
-  const { subscription } = useAppStore()
-  
+
   const startDate = new Date(subscription?.startsAt || new Date())
   
   const getDayLabel = (index: number) => {
@@ -61,10 +60,18 @@ export default function PlanScreen() {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold text-[#303333] mb-1">
-            Plano desta semana
+            {(() => {
+              if (!subscription) return 'Plano desta semana'
+              const start = new Date(subscription.startsAt)
+              const end = new Date(subscription.endsAt)
+              const fmt = (d: Date) => d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' })
+              return `${fmt(start)} — ${fmt(end)}`
+            })()}
           </h1>
           <p className="text-sm text-[#5d605f]">
-            {activeMembers.length} membros ativos · {currentPlan.slots.filter(s => s.isLocked).length} bloqueadas
+            {subscription?.planType === 'mensal' ? 'Plano mensal' : 'Plano semanal'}
+            {' · '}{activeMembers.length} membros ativos
+            {' · '}{currentPlan.slots.filter(s => s.isLocked).length} bloqueadas
           </p>
         </div>
         <motion.button
@@ -291,6 +298,7 @@ export default function PlanScreen() {
         />
       )}
       <MealParticipantsModal
+        key={participantSlot?.id || 'none'}
         slot={participantSlot}
         onClose={() => setParticipantSlot(null)}
       />

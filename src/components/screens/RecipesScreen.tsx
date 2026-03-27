@@ -24,7 +24,7 @@ const COMPAT_colors: Record<string, string> = {
 }
 
 export default function RecipesScreen() {
-  const { recipes, members, currentPlan, showToast } = useAppStore()
+  const { recipes, members, currentPlan, showToast, addRecipeToNextFreeSlot } = useAppStore()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('Todos')
   const [viewRecipeId, setViewRecipeId] = useState<string | null>(null)
@@ -144,7 +144,7 @@ export default function RecipesScreen() {
                   whileTap={{ scale: 0.95 }}
                   onClick={(e) => {
                     e.stopPropagation()
-                    showToast(`${recipe.title} adicionada ao plano`)
+                    addRecipeToNextFreeSlot(recipe.id)
                   }}
                   className="w-full flex items-center justify-center gap-1 bg-[#c5ebd7] text-[#446656] rounded-xl py-1.5 text-xs font-semibold"
                 >

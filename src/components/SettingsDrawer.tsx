@@ -54,12 +54,12 @@ export default function SettingsDrawer() {
 
               {/* User summary */}
               <div className="bg-white rounded-3xl p-4 shadow-ambient mb-8 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[#c5ebd7] flex items-center justify-center text-[#446656] font-bold text-lg">
-                  CS
+                <div className="w-12 h-12 rounded-2xl bg-[#c5ebd7] flex items-center justify-center text-[#446656] font-bold text-sm">
+                  {household.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div>
                   <p className="font-bold text-[#303333] leading-none mb-1">{household.name}</p>
-                  <p className="text-xs text-[#5d605f]">Plano Premium · Ativo</p>
+                  <p className="text-xs text-[#5d605f]">ablute_ wellness · Ativo</p>
                 </div>
               </div>
 
