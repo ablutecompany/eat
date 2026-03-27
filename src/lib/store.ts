@@ -55,6 +55,7 @@ interface AppStore {
   // Shopping
   shoppingItems: ShoppingItem[]
   toggleShoppingItem: (id: string) => void
+  checkAllShoppingItems: (val: boolean) => void
   toggleInPantry: (id: string) => void
   setPantryQuantity: (id: string, qty: number) => void
   resetShoppingItems: () => void
@@ -219,6 +220,10 @@ export const useAppStore = create<AppStore>()(
           shoppingItems: state.shoppingItems.map((item) =>
             item.id === id ? { ...item, checked: !item.checked } : item
           ),
+        })),
+      checkAllShoppingItems: (val) =>
+        set((state) => ({
+          shoppingItems: state.shoppingItems.map((item) => ({ ...item, checked: val })),
         })),
       toggleInPantry: (id) =>
         set((state) => ({
