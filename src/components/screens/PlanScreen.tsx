@@ -1,0 +1,264 @@
+'use client'
+
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAppStore } from '@/lib/store'
+import { RefreshCw, Lock, Unlock, ArrowLeftRight, Eye, ChevronRight } from 'lucide-react'
+import SwapMealDrawer from '../SwapMealDrawer'
+import RecipeDetailModal from '../RecipeDetailModal'
+import { MealSlot } from '@/lib/types'
+
+const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+const MEAL_LABELS: Record<string, string> = {
+  'pequeno-almoço': 'Pequeno-almoço',
+  almoço: 'Almoço',
+  jantar: 'Jantar',
+  snack: 'Snack',
+}
+
+const COMPAT_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  todos: { label: 'Comum a todos', color: '#446656', bg: '#c5ebd7' },
+  alguns: { label: 'Compatível com alguns', color: '#6e5c44', bg: '#f8dfc0' },
+  adaptada: { label: 'Adaptada', color: '#2e6771', bg: '#b7effb' },
+  bloqueada: { label: 'Bloqueada', color: '#a83836', bg: '#ffd7d6' },
+}
+
+export default function PlanScreen() {
+  const {
+    currentPlan,
+    activeDayIndex,
+    setActiveDayIndex,
+    members,
+    recipes,
+    toggleSlotLock,
+    regeneratePlan,
+    isRegenerating,
+  } = useAppStore()
+
+  const [swapSlot, setSwapSlot] = useState<MealSlot | null>(null)
+  const [viewRecipeId, setViewRecipeId] = useState<string | null>(null)
+
+  const daySlots = currentPlan.slots.filter((s) => s.day === activeDayIndex)
+  const activeMembers = members.filter((m) => m.isActive)
+
+  const today = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
+
+  return (
+    <div className="px-5 pt-4">
+      {/* Coverage Hero */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-display font-bold text-[#303333] mb-1">
+          Plano desta semana
+        </h1>
+        <p className="text-sm text-[#5d605f]">
+          {activeMembers.length} membros ativos · {currentPlan.slots.filter(s => s.isLocked).length} refeições bloqueadas
+        </p>
+      </div>
+
+      {/* Coverage Card */}
+      <div className="bg-white rounded-3xl p-5 shadow-ambient mb-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs text-[#5d605f] uppercase tracking-wider font-medium mb-1">Cobertura nutricional</p>
+            <p className="text-3xl font-display font-bold text-[#446656]">{currentPlan.coveragePercent}%</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-[#5d605f] uppercase tracking-wider font-medium mb-1">Sincronização</p>
+            <p className="text-3xl font-display font-bold text-[#2e6771]">{currentPlan.nutrientSyncPercent}%</p>
+          </div>
+        </div>
+        {/* Coverage bar */}
+        <div className="h-3 bg-[#f3f4f3] rounded-full overflow-hidden mb-3">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${currentPlan.coveragePercent}%` }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className="h-full rounded-full"
+            style={{ background: 'linear-gradient(90deg, #446656, #2e6771)' }}
+          />
+        </div>
+        {/* Member dots */}
+        <div className="flex items-center gap-2">
+          {activeMembers.map((m) => (
+            <div key={m.id} className="flex items-center gap-1">
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                style={{ backgroundColor: m.color }}
+              >
+                {m.name[0]}
+              </div>
+            </div>
+          ))}
+          <span className="text-xs text-[#5d605f] ml-1">sincronizados</span>
+        </div>
+      </div>
+
+      {/* Day Selector */}
+      <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-hide pb-1">
+        {DAYS.map((day, i) => {
+          const isActive = i === activeDayIndex
+          const isToday = i === today
+          const hasSlots = currentPlan.slots.some((s) => s.day === i)
+          return (
+            <motion.button
+              key={day}
+              onClick={() => setActiveDayIndex(i)}
+              whileTap={{ scale: 0.95 }}
+              className={`flex flex-col items-center min-w-[52px] py-2.5 px-3 rounded-2xl transition-all duration-200 ${
+                isActive
+                  ? 'bg-[#446656] text-white shadow-ambient-md'
+                  : 'bg-white text-[#5d605f]'
+              }`}
+            >
+              <span className={`text-[10px] font-medium mb-0.5 ${isActive ? 'text-white/80' : 'text-[#b0b2b1]'}`}>
+                {day}
+              </span>
+              <span className="text-base font-display font-bold">{i + 23}</span>
+              {isToday && !isActive && (
+                <div className="w-1 h-1 rounded-full bg-[#446656] mt-0.5" />
+              )}
+              {hasSlots && isActive && (
+                <div className="w-1 h-1 rounded-full bg-white/60 mt-0.5" />
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
+
+      {/* Meal Cards */}
+      <div className="space-y-4">
+        <AnimatePresence mode="popLayout">
+          {daySlots.map((slot) => {
+            const recipe = recipes.find((r) => r.id === slot.recipeId)
+            if (!recipe) return null
+            const compat = COMPAT_CONFIG[slot.compatibilityStatus]
+            const slotMembers = members.filter((m) => slot.memberIds.includes(m.id))
+
+            return (
+              <motion.div
+                key={slot.id}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-white rounded-3xl overflow-hidden shadow-ambient"
+              >
+                {/* Image */}
+                <div className="relative h-44 overflow-hidden">
+                  <img
+                    src={recipe.image}
+                    alt={recipe.title}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  
+                  {/* Meal type badge */}
+                  <div className="absolute top-3 left-3">
+                    <span className="text-[10px] font-medium text-white bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                      {MEAL_LABELS[slot.mealType]}
+                    </span>
+                  </div>
+
+                  {/* Lock button */}
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => toggleSlotLock(slot.id)}
+                    className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white"
+                  >
+                    {slot.isLocked ? <Lock size={14} /> : <Unlock size={14} />}
+                  </motion.button>
+
+                  {/* Title overlay */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <h3 className="text-white font-display font-bold text-lg leading-tight">
+                      {recipe.title}
+                    </h3>
+                    <p className="text-white/80 text-xs mt-0.5">{recipe.durationMinutes} min</p>
+                  </div>
+                </div>
+
+                {/* Card footer */}
+                <div className="px-4 py-3">
+                  {/* Compatibility */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className="text-xs font-medium px-2.5 py-1 rounded-full"
+                      style={{ color: compat.color, backgroundColor: compat.bg }}
+                    >
+                      {compat.label}
+                    </span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      {slotMembers.map((m) => (
+                        <div
+                          key={m.id}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${
+                            slot.adaptedMemberIds.includes(m.id) ? 'ring-2 ring-[#2e6771]' : ''
+                          }`}
+                          style={{ backgroundColor: m.color }}
+                          title={m.name + (slot.adaptedMemberIds.includes(m.id) ? ' (adaptado)' : '')}
+                        >
+                          {m.name[0]}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setSwapSlot(slot)}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#f3f4f3] text-[#446656] py-2.5 rounded-2xl text-sm font-medium"
+                    >
+                      <ArrowLeftRight size={14} />
+                      Trocar
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setViewRecipeId(recipe.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#f3f4f3] text-[#5d605f] py-2.5 rounded-2xl text-sm font-medium"
+                    >
+                      <Eye size={14} />
+                      Ver receita
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </AnimatePresence>
+      </div>
+
+      {/* Regenerate CTA */}
+      <div className="mt-6 mb-6">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={regeneratePlan}
+          disabled={isRegenerating}
+          className="w-full flex items-center justify-center gap-2 btn-primary-gradient text-white py-4 rounded-3xl font-semibold text-sm shadow-ambient-md disabled:opacity-70"
+        >
+          <motion.div
+            animate={{ rotate: isRegenerating ? 360 : 0 }}
+            transition={{ duration: 1, repeat: isRegenerating ? Infinity : 0, ease: 'linear' }}
+          >
+            <RefreshCw size={16} />
+          </motion.div>
+          {isRegenerating ? 'A regenerar semana...' : 'Regerar semana'}
+        </motion.button>
+      </div>
+
+      {/* Drawers & Modals */}
+      <SwapMealDrawer
+        slot={swapSlot}
+        onClose={() => setSwapSlot(null)}
+      />
+      {viewRecipeId && (
+        <RecipeDetailModal
+          recipeId={viewRecipeId}
+          onClose={() => setViewRecipeId(null)}
+        />
+      )}
+    </div>
+  )
+}
