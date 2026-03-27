@@ -1,23 +1,32 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { RefreshCw, Users, ChevronRight, Target, Clock, Euro, CreditCard, Settings } from 'lucide-react'
+import { RefreshCw, Users, ChevronRight, Target, Clock, Euro, CreditCard, Settings, X, Check } from 'lucide-react'
+import { HouseholdGoal } from '@/lib/types'
 
-const GOAL_LABELS: Record<string, string> = {
-  'saúde-familiar': 'Saúde Familiar',
-  'praticidade': 'Praticidade',
-  'gestão-restrições': 'Gestão de Restrições',
-  'poupança': 'Poupança',
-  'energia-performance': 'Energia e Performance',
-}
+const GOAL_OPTIONS: { id: HouseholdGoal; label: string; emoji: string; description: string; color: string; bg: string }[] = [
+  { id: 'saúde-familiar',      label: 'Saúde Familiar',        emoji: '💚', description: 'Nutrição equilibrada para todo o agregado', color: '#446656', bg: '#c5ebd7' },
+  { id: 'praticidade',         label: 'Praticidade',           emoji: '⚡', description: 'Refeições rápidas e simples no dia-a-dia',   color: '#4A7DB5', bg: '#d4e8f8' },
+  { id: 'gestão-restrições',   label: 'Gestão de Restrições',  emoji: '🛡️', description: 'Foco em restrições e alergias do agregado',  color: '#a83836', bg: '#ffd7d6' },
+  { id: 'poupança',            label: 'Poupança',              emoji: '💰', description: 'Priorizar refeições económicas e acessíveis', color: '#6e5c44', bg: '#f8dfc0' },
+  { id: 'energia-performance', label: 'Energia e Performance', emoji: '🏋️', description: 'Alto teor proteico e valor energético',      color: '#a87532', bg: '#fdefd3' },
+]
 
 export default function ProfileScreen() {
   const { household, updateHousehold, members, regeneratePlan, isRegenerating, showToast, subscription, dataSource } = useAppStore()
   const [budget, setBudget] = useState(household.budgetWeekly)
+  const [showGoalPicker, setShowGoalPicker] = useState(false)
 
   const activeCount = members.filter((m) => m.isActive).length
+  const currentGoal = GOAL_OPTIONS.find(g => g.id === household.goal) ?? GOAL_OPTIONS[0]
+
+  const handleGoalSelect = (goalId: HouseholdGoal) => {
+    updateHousehold({ goal: goalId })
+    setShowGoalPicker(false)
+    showToast('Objetivo atualizado. A próxima regeneração usará este estilo.')
+  }
 
   return (
     <div className="px-5 pt-4 pb-8">
@@ -35,7 +44,7 @@ export default function ProfileScreen() {
           </div>
           <div>
             <p className="font-display font-bold text-[#303333]">{household.name}</p>
-            <p className="text-xs text-[#446656]">{GOAL_LABELS[household.goal]}</p>
+            <p className="text-xs text-[#446656]">{currentGoal.emoji} {currentGoal.label}</p>
           </div>
         </div>
         <div className="flex gap-4 mb-3">
@@ -65,20 +74,24 @@ export default function ProfileScreen() {
       <div className="mb-5">
         <h2 className="text-sm font-display font-bold text-[#303333] mb-3 uppercase tracking-wider">Metas do Agregado</h2>
         <div className="bg-white rounded-3xl overflow-hidden shadow-ambient">
-          <div className="flex items-center justify-between px-4 py-4">
+          {/* Goal row — now tappable */}
+          <button
+            onClick={() => setShowGoalPicker(true)}
+            className="w-full flex items-center justify-between px-4 py-4 active:bg-[#f3f4f3] transition-colors"
+          >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#c5ebd7] flex items-center justify-center">
-                <Target size={14} className="text-[#446656]" />
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base" style={{ backgroundColor: currentGoal.bg }}>
+                {currentGoal.emoji}
               </div>
-              <div>
+              <div className="text-left">
                 <p className="text-sm font-medium text-[#303333]">Objetivo Geral</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-[#5d605f] text-sm">
-              <span>{GOAL_LABELS[household.goal]}</span>
+            <div className="flex items-center gap-1 text-sm" style={{ color: currentGoal.color }}>
+              <span className="font-medium">{currentGoal.label}</span>
               <ChevronRight size={14} />
             </div>
-          </div>
+          </button>
           <div className="h-px bg-[#f3f4f3] mx-4" />
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -200,6 +213,75 @@ export default function ProfileScreen() {
           </div>
         </div>
       </div>
+
+      {/* ── Goal Picker Bottom Sheet ── */}
+      <AnimatePresence>
+        {showGoalPicker && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowGoalPicker(false)}
+              className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-[#faf9f8] rounded-t-[28px] shadow-2xl"
+            >
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <div>
+                  <h3 className="text-lg font-display font-bold text-[#303333]">Objetivo Geral</h3>
+                  <p className="text-xs text-[#5d605f] mt-0.5">Influencia a seleção e ordenação das refeições</p>
+                </div>
+                <button
+                  onClick={() => setShowGoalPicker(false)}
+                  className="w-8 h-8 rounded-full bg-[#f3f4f3] flex items-center justify-center text-[#5d605f]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="px-4 pb-8 space-y-2">
+                {GOAL_OPTIONS.map((g) => {
+                  const isSelected = household.goal === g.id
+                  return (
+                    <motion.button
+                      key={g.id}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handleGoalSelect(g.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all text-left ${
+                        isSelected
+                          ? 'border-[#446656] bg-[#c5ebd7]/30'
+                          : 'border-transparent bg-white shadow-ambient-sm'
+                      }`}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+                        style={{ backgroundColor: g.bg }}
+                      >
+                        {g.emoji}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-[#303333]">{g.label}</p>
+                        <p className="text-xs text-[#5d605f] mt-0.5">{g.description}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-[#446656] flex items-center justify-center shrink-0">
+                          <Check size={12} className="text-white" />
+                        </div>
+                      )}
+                    </motion.button>
+                  )
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

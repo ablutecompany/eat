@@ -218,35 +218,89 @@ export const useAppStore = create<AppStore>()(
       regeneratePlan: () => {
         set({ isRegenerating: true })
         setTimeout(() => {
-          // Shuffle non-locked slots
-          const recipes = get().recipes
-          const lockedSlotIds = get()
-            .currentPlan.slots.filter((s: MealSlot) => s.isLocked)
+          const state = get()
+          const recipes = state.recipes
+          const goal = state.household.goal
+          const activeMembers = state.members.filter((m: HouseholdMember) => m.isActive)
+
+          // ── Goal → preferred tags mapping ──────────────────────────────
+          // Priority hierarcy applied per slot:
+          // 1. Hard-exclude recipes where ANY active member is 'incompatível' due to allergies
+          // 2. Prefer recipes matching goal tags (score), pick from top-score tier
+          const GOAL_TAGS: Record<string, string[]> = {
+            'saúde-familiar':      ['sem-glúten', 'sem-lactose', 'vegetariano', 'ferro', 'vitamina'],
+            'praticidade':         ['rápido', 'kids'],
+            'gestão-restrições':   ['sem-glúten', 'sem-lactose', 'vegan', 'vegetariano'],
+            'poupança':            ['económico', 'vegetariano', 'vegan'],
+            'energia-performance': ['alto-em-proteína', 'proteína', 'ómega-3'],
+          }
+          const preferredTags = GOAL_TAGS[goal] ?? []
+
+          const scoreRecipe = (r: Recipe): number => {
+            // Hard penalty: any active member fully incompatible (allergy-driven)
+            const hasAllergy = activeMembers.some((m: HouseholdMember) => {
+              const compat = r.compatibilityByMember.find(
+                (c: MemberCompatibility) => c.memberId === m.id
+              )
+              return compat?.status === 'incompatível'
+            })
+            if (hasAllergy) return -1  // excluded from pool
+
+            // Score by goal-preferred tags
+            let score = 0
+            for (const tag of preferredTags) {
+              if (r.tags.includes(tag)) score += 2
+            }
+            // Minor bonus for 'compatível' across all active members
+            const allCompatible = activeMembers.every((m: HouseholdMember) => {
+              const compat = r.compatibilityByMember.find(
+                (c: MemberCompatibility) => c.memberId === m.id
+              )
+              return !compat || compat.status !== 'incompatível'
+            })
+            if (allCompatible) score += 1
+            return score
+          }
+
+          const lockedSlotIds = state.currentPlan.slots
+            .filter((s: MealSlot) => s.isLocked)
             .map((s: MealSlot) => s.id)
 
-          set((state: AppStore) => {
+          set((st: AppStore) => {
             const usedRecipeIds = new Set(
-              state.currentPlan.slots.filter((s: MealSlot) => s.isLocked).map((s: MealSlot) => s.recipeId)
+              st.currentPlan.slots.filter((s: MealSlot) => s.isLocked).map((s: MealSlot) => s.recipeId)
             )
 
             return {
               isRegenerating: false,
               currentPlan: {
-                ...state.currentPlan,
+                ...st.currentPlan,
                 coveragePercent: Math.floor(Math.random() * 20) + 70,
                 nutrientSyncPercent: Math.floor(Math.random() * 20) + 75,
-                slots: state.currentPlan.slots.map((slot: MealSlot) => {
+                slots: st.currentPlan.slots.map((slot: MealSlot) => {
                   if (lockedSlotIds.includes(slot.id)) return slot
-                  const availableRecipes = recipes.filter((r: Recipe) =>
+
+                  // Filter by meal type and not already used
+                  const forType = recipes.filter((r: Recipe) =>
                     r.mealType.includes(slot.mealType) && !usedRecipeIds.has(r.id)
                   )
-                  
-                  // If no unused recipes available, fallback to any available for that type
-                  const pool = availableRecipes.length > 0 ? availableRecipes : recipes.filter(r => r.mealType.includes(slot.mealType))
-                  const randomRecipe = pool[Math.floor(Math.random() * pool.length)]
-                  
-                  if (randomRecipe) usedRecipeIds.add(randomRecipe.id)
-                  return randomRecipe ? { ...slot, recipeId: randomRecipe.id } : slot
+                  const pool = forType.length > 0
+                    ? forType
+                    : recipes.filter((r: Recipe) => r.mealType.includes(slot.mealType))
+
+                  // Score & sort — pick from top-score tier (all with max score)
+                  const scored: Array<{ r: Recipe; score: number }> = pool
+                    .map((r: Recipe) => ({ r, score: scoreRecipe(r) }))
+                    .filter(({ score }: { r: Recipe; score: number }) => score >= 0)
+                    .sort((a: { r: Recipe; score: number }, b: { r: Recipe; score: number }) => b.score - a.score)
+
+                  const topScore = scored[0]?.score ?? 0
+                  const topTier = scored.filter(({ score }: { r: Recipe; score: number }) => score === topScore).map(({ r }: { r: Recipe; score: number }) => r)
+                  const finalPool = topTier.length > 0 ? topTier : pool
+
+                  const chosen = finalPool[Math.floor(Math.random() * finalPool.length)]
+                  if (chosen) usedRecipeIds.add(chosen.id)
+                  return chosen ? { ...slot, recipeId: chosen.id } : slot
                 }),
               },
             }
