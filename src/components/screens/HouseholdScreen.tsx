@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { Plus, ChevronRight, FileText, FlaskConical } from 'lucide-react'
-import MemberDetailModal from '../MemberDetailModal'
 import AddMemberModal from '../AddMemberModal'
+import EditMemberModal from '../EditMemberModal'
 
 export default function HouseholdScreen() {
   const { members, toggleMemberActive } = useAppStore()
@@ -103,9 +103,9 @@ export default function HouseholdScreen() {
                     </div>
                     <button
                       onClick={() => setSelectedMemberId(member.id)}
-                      className="ml-auto flex items-center gap-0.5 text-xs text-[#446656] font-medium"
+                      className="ml-auto flex items-center gap-0.5 text-xs text-[#446656] font-medium p-2 rounded-xl hover:bg-[#c5ebd7]/20 transition-colors"
                     >
-                      Ver detalhes
+                      Editar perfil
                       <ChevronRight size={12} />
                     </button>
                   </div>
@@ -128,7 +128,7 @@ export default function HouseholdScreen() {
 
       {/* Modals */}
       {selectedMemberId && (
-        <MemberDetailModal
+        <EditMemberModal
           memberId={selectedMemberId}
           onClose={() => setSelectedMemberId(null)}
         />

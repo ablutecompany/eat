@@ -1,5 +1,7 @@
 'use client'
 
+import { motion } from 'framer-motion'
+import { Settings } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
 const TAB_TITLES: Record<string, string> = {
@@ -12,7 +14,7 @@ const TAB_TITLES: Record<string, string> = {
 }
 
 export default function TopAppBar() {
-  const { activeTab, household } = useAppStore()
+  const { activeTab, household, setSettingsOpen } = useAppStore()
 
   return (
     <header className="sticky top-0 z-40 glass border-b border-[#b0b2b1]/15 px-5 pt-safe">
@@ -23,9 +25,13 @@ export default function TopAppBar() {
             {household.name}
           </span>
         </div>
-        <div className="w-8 h-8 rounded-full bg-[#c5ebd7] flex items-center justify-center text-[#446656] font-bold text-sm">
-          CS
-        </div>
+        <motion.button 
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setSettingsOpen(true)}
+          className="w-8 h-8 rounded-full bg-[#f3f4f3] flex items-center justify-center text-[#5d605f]"
+        >
+          <Settings size={18} />
+        </motion.button>
       </div>
     </header>
   )

@@ -11,6 +11,24 @@ export type ShoppingCategory = 'Hortifruti' | 'Talho' | 'Peixaria' | 'Lacticíni
 export type ExclusionReason = 'não-gosto' | 'alergia' | 'evitar-agora'
 export type HouseholdGoal = 'saúde-familiar' | 'praticidade' | 'gestão-restrições' | 'poupança' | 'energia-performance'
 
+export interface DataSourceConnection {
+  id: string
+  householdId: string
+  sourceName: 'ablute_wellness' | string
+  isActive: boolean
+  consentAcceptedAt: string
+  lastSyncedAt: string
+}
+
+export interface SubscriptionPeriod {
+  id: string
+  householdId: string
+  planType: 'semanal' | 'mensal'
+  startsAt: string
+  endsAt: string
+  isActive: boolean
+}
+
 export interface HouseholdMember {
   id: string
   householdId: string
@@ -22,6 +40,7 @@ export interface HouseholdMember {
   age?: number
   isActive: boolean
   notes?: string
+  portionFactor: number // e.g., 1.0 (adulto), 0.75 (criança)
   preferences: MemberPreferences
   nutrientTargets: NutrientTarget[]
   uploadedFiles: MemberUploadedFile[]
@@ -147,6 +166,7 @@ export interface MealSlot {
   isLocked: boolean
   compatibilityStatus: CompatibilityStatus
   memberIds: string[]
+  participantIds: string[] // List of members specifically participating in this meal
   adaptedMemberIds: string[]
   notes?: string
 }
@@ -202,4 +222,8 @@ export interface AppState {
   activeTab: string
   isRegenerating: boolean
   toastMessage: string | null
+  
+  // New: Data Source & Subscription
+  dataSource: DataSourceConnection | null
+  subscription: SubscriptionPeriod | null
 }

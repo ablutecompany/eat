@@ -39,6 +39,7 @@ export const mockMembers: HouseholdMember[] = [
     age: 38,
     isActive: true,
     notes: 'Sensível a glúten e lactose. Prefere refeições leves ao almoço.',
+    portionFactor: 1.0,
     preferences: {
       memberId: 'm-ana',
       dietTags: ['sem-glúten', 'sem-lactose'],
@@ -109,6 +110,7 @@ export const mockMembers: HouseholdMember[] = [
     age: 41,
     isActive: true,
     notes: 'Faz musculação, foco em proteína e recuperação muscular.',
+    portionFactor: 1.2,
     preferences: {
       memberId: 'm-pedro',
       dietTags: ['alto-em-proteína'],
@@ -162,6 +164,7 @@ export const mockMembers: HouseholdMember[] = [
     age: 9,
     isActive: false,
     notes: 'Alergia a amendoim. Não gosta de brócolos. Em período de férias — inativa por agora.',
+    portionFactor: 0.65,
     preferences: {
       memberId: 'm-clara',
       dietTags: ['kids'],
@@ -190,6 +193,7 @@ export const mockMembers: HouseholdMember[] = [
     age: 14,
     isActive: true,
     notes: 'Adolescente desportista. Necessidades calóricas elevadas.',
+    portionFactor: 0.85,
     preferences: {
       memberId: 'm-lucas',
       dietTags: ['alto-em-proteína', 'energia'],
@@ -463,26 +467,26 @@ export const mockMealPlan: MealPlan = {
   nutrientSyncPercent: 82,
   slots: [
     // Segunda (0)
-    { id: 'slot-0-alm', day: 0, mealType: 'almoço', recipeId: 'rec-1', isLocked: true, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [], notes: 'Clara inativa' },
-    { id: 'slot-0-jan', day: 0, mealType: 'jantar', recipeId: 'rec-3', isLocked: false, compatibilityStatus: 'todos', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
+    { id: 'slot-0-alm', day: 0, mealType: 'almoço', recipeId: 'rec-1', isLocked: true, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [], notes: 'Clara inativa' },
+    { id: 'slot-0-jan', day: 0, mealType: 'jantar', recipeId: 'rec-3', isLocked: false, compatibilityStatus: 'todos', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
     // Terça (1)
-    { id: 'slot-1-alm', day: 1, mealType: 'almoço', recipeId: 'rec-2', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
-    { id: 'slot-1-jan', day: 1, mealType: 'jantar', recipeId: 'rec-4', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
+    { id: 'slot-1-alm', day: 1, mealType: 'almoço', recipeId: 'rec-2', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
+    { id: 'slot-1-jan', day: 1, mealType: 'jantar', recipeId: 'rec-4', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
     // Quarta (2)
-    { id: 'slot-2-alm', day: 2, mealType: 'almoço', recipeId: 'rec-5', isLocked: false, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
-    { id: 'slot-2-jan', day: 2, mealType: 'jantar', recipeId: 'rec-6', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-pedro', 'm-lucas'] },
+    { id: 'slot-2-alm', day: 2, mealType: 'almoço', recipeId: 'rec-5', isLocked: false, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
+    { id: 'slot-2-jan', day: 2, mealType: 'jantar', recipeId: 'rec-6', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-pedro', 'm-lucas'] },
     // Quinta (3)
-    { id: 'slot-3-alm', day: 3, mealType: 'almoço', recipeId: 'rec-3', isLocked: false, compatibilityStatus: 'todos', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
-    { id: 'slot-3-jan', day: 3, mealType: 'jantar', recipeId: 'rec-1', isLocked: false, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
+    { id: 'slot-3-alm', day: 3, mealType: 'almoço', recipeId: 'rec-3', isLocked: false, compatibilityStatus: 'todos', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
+    { id: 'slot-3-jan', day: 3, mealType: 'jantar', recipeId: 'rec-1', isLocked: false, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
     // Sexta (4)
-    { id: 'slot-4-alm', day: 4, mealType: 'almoço', recipeId: 'rec-4', isLocked: true, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
-    { id: 'slot-4-jan', day: 4, mealType: 'jantar', recipeId: 'rec-2', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
+    { id: 'slot-4-alm', day: 4, mealType: 'almoço', recipeId: 'rec-4', isLocked: true, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
+    { id: 'slot-4-jan', day: 4, mealType: 'jantar', recipeId: 'rec-2', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
     // Sábado (5)
-    { id: 'slot-5-alm', day: 5, mealType: 'almoço', recipeId: 'rec-5', isLocked: false, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
-    { id: 'slot-5-jan', day: 5, mealType: 'jantar', recipeId: 'rec-3', isLocked: false, compatibilityStatus: 'todos', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
+    { id: 'slot-5-alm', day: 5, mealType: 'almoço', recipeId: 'rec-5', isLocked: false, compatibilityStatus: 'alguns', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
+    { id: 'slot-5-jan', day: 5, mealType: 'jantar', recipeId: 'rec-3', isLocked: false, compatibilityStatus: 'todos', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: [] },
     // Domingo (6)
-    { id: 'slot-6-alm', day: 6, mealType: 'almoço', recipeId: 'rec-2', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
-    { id: 'slot-6-jan', day: 6, mealType: 'jantar', recipeId: 'rec-6', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-pedro', 'm-lucas'] },
+    { id: 'slot-6-alm', day: 6, mealType: 'almoço', recipeId: 'rec-2', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-lucas'] },
+    { id: 'slot-6-jan', day: 6, mealType: 'jantar', recipeId: 'rec-6', isLocked: false, compatibilityStatus: 'adaptada', memberIds: ['m-ana', 'm-pedro', 'm-lucas'], participantIds: ['m-ana', 'm-pedro', 'm-lucas'], adaptedMemberIds: ['m-pedro', 'm-lucas'] },
   ],
 }
 

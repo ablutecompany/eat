@@ -4,18 +4,21 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { ArrowLeftRight, ThumbsDown, Trash2 } from 'lucide-react'
+import AvoidMemberModal from '../AvoidMemberModal'
+import { Ingredient } from '@/lib/types'
 
-const FILTERS = ['Todos', 'Comuns', 'Específicos', 'Excluídos']
+const FILTERS = ['Todos', 'Comuns', 'Específicos', 'A evitar / Excluídos']
 
 export default function IngredientsScreen() {
-  const { ingredients, members, showToast } = useAppStore()
+  const { ingredients, members, showToast, toggleIngredientAvoidance } = useAppStore()
   const [activeFilter, setActiveFilter] = useState('Todos')
+  const [avoidingIngredient, setAvoidingIngredient] = useState<Ingredient | null>(null)
 
   const filtered = useMemo(() => {
     if (activeFilter === 'Todos') return ingredients
     if (activeFilter === 'Comuns') return ingredients.filter((i) => i.compatibilityType === 'comum')
     if (activeFilter === 'Específicos') return ingredients.filter((i) => i.compatibilityType === 'específico')
-    if (activeFilter === 'Excluídos') return ingredients.filter((i) => i.compatibilityType === 'excluído')
+    if (activeFilter === 'A evitar / Excluídos') return ingredients.filter((i) => i.compatibilityType === 'excluído')
     return ingredients
   }, [ingredients, activeFilter])
 
@@ -71,7 +74,7 @@ export default function IngredientsScreen() {
                     }`}
                   >
                     {ingredient.compatibilityType === 'comum' ? 'Comum' : 
-                     ingredient.compatibilityType === 'específico' ? 'Específico' : 'Excluído'}
+                     ingredient.compatibilityType === 'específico' ? 'Específico' : 'A evitar / Excluído'}
                   </span>
                 </div>
                 <p className="text-xs text-[#5d605f] mb-1.5">{ingredient.portionLabel} ({ingredient.quantityBase})</p>
@@ -109,7 +112,7 @@ export default function IngredientsScreen() {
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
-                  onClick={() => showToast(`Não gosto de ${ingredient.name} registado`)}
+                  onClick={() => setAvoidingIngredient(ingredient)}
                   className="w-7 h-7 flex items-center justify-center rounded-xl bg-[#f3f4f3] text-[#5d605f]"
                 >
                   <ThumbsDown size={12} />
@@ -129,6 +132,17 @@ export default function IngredientsScreen() {
           </div>
         ))}
       </div>
+
+      <AvoidMemberModal
+        ingredientName={avoidingIngredient?.name || ''}
+        isOpen={!!avoidingIngredient}
+        onClose={() => setAvoidingIngredient(null)}
+        onConfirm={(memberIds) => {
+          if (avoidingIngredient) {
+            toggleIngredientAvoidance(avoidingIngredient.id, memberIds)
+          }
+        }}
+      />
     </div>
   )
 }

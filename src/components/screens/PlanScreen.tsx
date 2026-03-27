@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store'
 import { RefreshCw, Lock, Unlock, ArrowLeftRight, Eye, ChevronRight } from 'lucide-react'
 import SwapMealDrawer from '../SwapMealDrawer'
 import RecipeDetailModal from '../RecipeDetailModal'
+import MealParticipantsModal from '../MealParticipantsModal'
 import { MealSlot } from '@/lib/types'
 
 const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
@@ -37,11 +38,21 @@ export default function PlanScreen() {
 
   const [swapSlot, setSwapSlot] = useState<MealSlot | null>(null)
   const [viewRecipeId, setViewRecipeId] = useState<string | null>(null)
+  const [participantSlot, setParticipantSlot] = useState<MealSlot | null>(null)
 
   const daySlots = currentPlan.slots.filter((s) => s.day === activeDayIndex)
   const activeMembers = members.filter((m) => m.isActive)
 
   const today = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
+  const { subscription } = useAppStore()
+  
+  const startDate = new Date(subscription?.startsAt || new Date())
+  
+  const getDayLabel = (index: number) => {
+    const d = new Date(startDate)
+    d.setDate(d.getDate() + index)
+    return d.getDate()
+  }
 
   return (
     <div className="px-5 pt-4">
@@ -113,7 +124,7 @@ export default function PlanScreen() {
               <span className={`text-[10px] font-medium mb-0.5 ${isActive ? 'text-white/80' : 'text-[#b0b2b1]'}`}>
                 {day}
               </span>
-              <span className="text-base font-display font-bold">{i + 23}</span>
+              <span className="text-base font-display font-bold">{getDayLabel(i)}</span>
               {isToday && !isActive && (
                 <div className="w-1 h-1 rounded-full bg-[#446656] mt-0.5" />
               )}
@@ -188,20 +199,28 @@ export default function PlanScreen() {
                     >
                       {compat.label}
                     </span>
-                    <div className="flex items-center gap-1 ml-auto">
+                    <motion.div 
+                      key={slot.id + '-members'}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation()
+                        setParticipantSlot(slot)
+                      }}
+                      className="flex items-center gap-1 ml-auto cursor-pointer p-1 rounded-xl hover:bg-[#f3f4f3] transition-colors"
+                    >
                       {slotMembers.map((m) => (
                         <div
                           key={m.id}
                           className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${
                             slot.adaptedMemberIds.includes(m.id) ? 'ring-2 ring-[#2e6771]' : ''
-                          }`}
+                          } ${!slot.participantIds.includes(m.id) ? 'opacity-30 grayscale' : ''}`}
                           style={{ backgroundColor: m.color }}
-                          title={m.name + (slot.adaptedMemberIds.includes(m.id) ? ' (adaptado)' : '')}
+                          title={m.name + (slot.adaptedMemberIds.includes(m.id) ? ' (adaptado)' : '') + (!slot.participantIds.includes(m.id) ? ' (não participa)' : '')}
                         >
                           {m.name[0]}
                         </div>
                       ))}
-                    </div>
+                    </motion.div>
                   </div>
 
                   {/* Actions */}
@@ -259,6 +278,10 @@ export default function PlanScreen() {
           onClose={() => setViewRecipeId(null)}
         />
       )}
+      <MealParticipantsModal
+        slot={participantSlot}
+        onClose={() => setParticipantSlot(null)}
+      />
     </div>
   )
 }

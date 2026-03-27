@@ -20,15 +20,20 @@ const slide = {
 }
 
 export default function Onboarding() {
-  const { setOnboardingComplete, setOnboardingStep, updateHousehold } = useAppStore()
+  const { setOnboardingComplete, setOnboardingStep, updateHousehold, setDataSource } = useAppStore()
   const [step, setStep] = useState(0)
   const [householdName, setHouseholdName] = useState('')
   const [selectedGoal, setSelectedGoal] = useState('saúde-familiar')
+  const [sourceActivated, setSourceActivated] = useState(false)
 
-  const totalSteps = 4
+  const totalSteps = 5
 
   const nextStep = () => {
     if (step < totalSteps - 1) {
+      if (step === 3 && !sourceActivated) {
+        // Do nothing if on source step and not activated
+        return
+      }
       setStep(step + 1)
       setOnboardingStep(step + 1)
     } else {
@@ -163,8 +168,67 @@ export default function Onboarding() {
           </motion.div>
         )}
 
-        {/* Step 3: Ready */}
+        {/* Step 3: DataSource Connection */}
         {step === 3 && (
+          <motion.div key="s3_source" {...slide} className="flex-1 flex flex-col px-5 pt-12 pb-8">
+            <div className="flex-1">
+              <div className="w-16 h-16 rounded-3xl bg-[#d1e0ff] flex items-center justify-center mb-6">
+                <Leaf size={28} className="text-[#3b5bdb]" />
+              </div>
+              <h2 className="text-3xl font-display font-bold text-[#303333] mb-3">Conectar Dados</h2>
+              <div className="bg-[#f0f4ff] border border-[#d1e0ff] p-4 rounded-2xl mb-6">
+                <p className="text-[#3b5bdb] text-sm font-semibold mb-1">ablute_ wellness</p>
+                <p className="text-[#5d605f] text-xs leading-relaxed">
+                  Esta app utiliza dados nutricionais e resultados relevantes dos utilizadores ativos associados à sua conta em ablute_ wellness, para criar planos alimentares personalizados e convergentes entre os perfis selecionados.
+                </p>
+              </div>
+              <p className="text-sm text-[#5d605f] leading-relaxed mb-8">
+                Ao continuar, aceita a partilha destes dados com esta app para efeitos de planeamento alimentar.
+              </p>
+              
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setSourceActivated(true)
+                  setDataSource({
+                    id: 'ds-001',
+                    householdId: 'hh-001',
+                    sourceName: 'ablute_wellness',
+                    isActive: true,
+                    consentAcceptedAt: new Date().toISOString(),
+                    lastSyncedAt: new Date().toISOString(),
+                  })
+                }}
+                className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 transition-all ${
+                  sourceActivated 
+                    ? 'bg-[#c5ebd7] text-[#446656] font-bold border-2 border-[#446656]' 
+                    : 'bg-white border-2 border-dashed border-[#e1e3e2] text-[#5d605f]'
+                }`}
+              >
+                {sourceActivated ? <Check size={20} /> : null}
+                {sourceActivated ? 'Source Ativada' : 'Ativar Source'}
+              </motion.button>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setStep(2)} className="px-6 py-4 bg-[#f3f4f3] text-[#5d605f] rounded-3xl font-semibold text-sm">
+                Voltar
+              </button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={nextStep}
+                disabled={!sourceActivated}
+                className={`flex-1 py-4 rounded-3xl font-semibold text-sm ${
+                  sourceActivated ? 'btn-primary-gradient text-white' : 'bg-[#e1e3e2] text-[#a0a3a2]'
+                }`}
+              >
+                Continuar
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Step 4: Ready */}
+        {step === 4 && (
           <motion.div key="s3" {...slide} className="flex-1 flex flex-col px-5 pt-12 pb-8">
             <div className="flex-1">
               <div className="text-6xl mb-6">🎉</div>

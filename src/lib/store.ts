@@ -9,6 +9,11 @@ import {
   MealPlan,
   ShoppingItem,
   MealSlot,
+  DataSourceConnection,
+  SubscriptionPeriod,
+  MemberCompatibility,
+  ShoppingCategory,
+  RelationType
 } from './types'
 import {
   mockHousehold,
@@ -67,54 +72,72 @@ interface AppStore {
   showToast: (message: string) => void
   clearToast: () => void
   isRegenerating: boolean
+  
+  // Data Source & Subscription
+  dataSource: DataSourceConnection | null
+  subscription: SubscriptionPeriod | null
+  setDataSource: (source: DataSourceConnection | null) => void
+  setSubscription: (sub: SubscriptionPeriod | null) => void
+  
+  // Participation
+  updateMealParticipants: (slotId: string, participantIds: string[]) => void
+  toggleIngredientAvoidance: (ingredientId: string, memberIds: string[]) => void
+  recalculateShoppingList: () => void
+  isSettingsOpen: boolean
+  setSettingsOpen: (open: boolean) => void
 }
 
 export const useAppStore = create<AppStore>()(
   persist(
-    (set, get) => ({
+    (set: any, get: any) => ({
       // Onboarding
       onboardingComplete: false,
       onboardingStep: 0,
-      setOnboardingComplete: (val) => set({ onboardingComplete: val }),
-      setOnboardingStep: (step) => set({ onboardingStep: step }),
+      setOnboardingComplete: (val: boolean) => set({ onboardingComplete: val }),
+      setOnboardingStep: (step: number) => set({ onboardingStep: step }),
 
       // Household
       household: mockHousehold,
-      updateHousehold: (updates) =>
-        set((state) => ({ household: { ...state.household, ...updates } })),
+      updateHousehold: (updates: Partial<Household>) =>
+        set((state: AppStore) => ({ household: { ...state.household, ...updates } })),
 
       // Members
       members: mockMembers,
-      addMember: (member) =>
-        set((state) => ({ members: [...state.members, member] })),
-      updateMember: (id, updates) =>
-        set((state) => ({
-          members: state.members.map((m) =>
+      addMember: (member: HouseholdMember) => {
+        set((state: AppStore) => ({ members: [...state.members, member] }))
+        get().recalculateShoppingList()
+      },
+      updateMember: (id: string, updates: Partial<HouseholdMember>) => {
+        set((state: AppStore) => ({
+          members: state.members.map((m: HouseholdMember) =>
             m.id === id ? { ...m, ...updates } : m
           ),
+        }))
+        get().recalculateShoppingList()
+      },
+      removeMember: (id: string) =>
+        set((state: AppStore) => ({
+          members: state.members.filter((m: HouseholdMember) => m.id !== id),
         })),
-      removeMember: (id) =>
-        set((state) => ({
-          members: state.members.filter((m) => m.id !== id),
-        })),
-      toggleMemberActive: (id) => {
-        set((state) => ({
-          members: state.members.map((m) =>
+      toggleMemberActive: (id: string) => {
+        set((state: AppStore) => ({
+          members: state.members.map((m: HouseholdMember) =>
             m.id === id ? { ...m, isActive: !m.isActive } : m
           ),
         }))
         const member = get().members.find((m) => m.id === id)
         if (member) {
           get().showToast(
-            `${member.name} ${member.isActive ? 'desativado' : 'ativado'} no planeamento`
+            `${member.name} ${member.isActive ? 'ativado' : 'desativado'} no planeamento`
           )
         }
+        get().recalculateShoppingList()
       },
 
       // Recipes
       recipes: mockRecipes,
-      addRecipe: (recipe) =>
-        set((state) => ({ recipes: [...state.recipes, recipe] })),
+      addRecipe: (recipe: Recipe) =>
+        set((state: AppStore) => ({ recipes: [...state.recipes, recipe] })),
 
       // Ingredients
       ingredients: mockIngredients,
@@ -122,13 +145,13 @@ export const useAppStore = create<AppStore>()(
       // Plan
       currentPlan: mockMealPlan,
       activeDayIndex: new Date().getDay() === 0 ? 6 : new Date().getDay() - 1,
-      setActiveDayIndex: (day) => set({ activeDayIndex: day }),
-      toggleSlotLock: (slotId) => {
-        const slot = get().currentPlan.slots.find((s) => s.id === slotId)
-        set((state) => ({
+      setActiveDayIndex: (day: number) => set({ activeDayIndex: day }),
+      toggleSlotLock: (slotId: string) => {
+        const slot = get().currentPlan.slots.find((s: MealSlot) => s.id === slotId)
+        set((state: AppStore) => ({
           currentPlan: {
             ...state.currentPlan,
-            slots: state.currentPlan.slots.map((s) =>
+            slots: state.currentPlan.slots.map((s: MealSlot) =>
               s.id === slotId ? { ...s, isLocked: !s.isLocked } : s
             ),
           },
@@ -137,18 +160,18 @@ export const useAppStore = create<AppStore>()(
           get().showToast(slot.isLocked ? 'Refeição desbloqueada' : 'Refeição bloqueada')
         }
       },
-      swapMealSlot: (slotId, newRecipeId) => {
-        const recipe = get().recipes.find((r) => r.id === newRecipeId)
-        const activeMembers = get().members.filter((m) => m.isActive)
+      swapMealSlot: (slotId: string, newRecipeId: string) => {
+        const recipe = get().recipes.find((r: Recipe) => r.id === newRecipeId)
+        const activeMembers = get().members.filter((m: HouseholdMember) => m.isActive)
         
         // Calculate compatibility
-        const incompatibleCount = activeMembers.filter((m) => {
-          const compat = recipe?.compatibilityByMember.find((c) => c.memberId === m.id)
+        const incompatibleCount = activeMembers.filter((m: HouseholdMember) => {
+          const compat = recipe?.compatibilityByMember.find((c: MemberCompatibility) => c.memberId === m.id)
           return compat?.status === 'incompatível'
         }).length
 
-        const adaptedCount = activeMembers.filter((m) => {
-          const compat = recipe?.compatibilityByMember.find((c) => c.memberId === m.id)
+        const adaptedCount = activeMembers.filter((m: HouseholdMember) => {
+          const compat = recipe?.compatibilityByMember.find((c: MemberCompatibility) => c.memberId === m.id)
           return compat?.status === 'adaptado'
         }).length
 
@@ -156,24 +179,25 @@ export const useAppStore = create<AppStore>()(
         if (incompatibleCount > 0) status = 'alguns'
         else if (adaptedCount > 0) status = 'adaptada'
 
-        set((state) => ({
+        set((state: AppStore) => ({
           currentPlan: {
             ...state.currentPlan,
-            slots: state.currentPlan.slots.map((s) =>
+            slots: state.currentPlan.slots.map((s: MealSlot) =>
               s.id === slotId
                 ? {
                     ...s,
                     recipeId: newRecipeId,
                     compatibilityStatus: status,
-                    memberIds: activeMembers.map((m) => m.id),
+                    memberIds: activeMembers.map((m: HouseholdMember) => m.id),
+                    participantIds: activeMembers.map((m: HouseholdMember) => m.id), // Default to all active
                     adaptedMemberIds: activeMembers
-                      .filter((m) => {
+                      .filter((m: HouseholdMember) => {
                         const compat = recipe?.compatibilityByMember.find(
-                          (c) => c.memberId === m.id
+                          (c: MemberCompatibility) => c.memberId === m.id
                         )
                         return compat?.status === 'adaptado'
                       })
-                      .map((m) => m.id),
+                      .map((m: HouseholdMember) => m.id),
                   }
                 : s
             ),
@@ -189,51 +213,61 @@ export const useAppStore = create<AppStore>()(
           // Shuffle non-locked slots
           const recipes = get().recipes
           const lockedSlotIds = get()
-            .currentPlan.slots.filter((s) => s.isLocked)
-            .map((s) => s.id)
+            .currentPlan.slots.filter((s: MealSlot) => s.isLocked)
+            .map((s: MealSlot) => s.id)
 
-          set((state) => ({
-            isRegenerating: false,
-            currentPlan: {
-              ...state.currentPlan,
-              coveragePercent: Math.floor(Math.random() * 20) + 70,
-              nutrientSyncPercent: Math.floor(Math.random() * 20) + 75,
-              slots: state.currentPlan.slots.map((slot) => {
-                if (lockedSlotIds.includes(slot.id)) return slot
-                const availableRecipes = recipes.filter((r) =>
-                  r.mealType.includes(slot.mealType)
-                )
-                const randomRecipe =
-                  availableRecipes[Math.floor(Math.random() * availableRecipes.length)]
-                return randomRecipe ? { ...slot, recipeId: randomRecipe.id } : slot
-              }),
-            },
-          }))
+          set((state: AppStore) => {
+            const usedRecipeIds = new Set(
+              state.currentPlan.slots.filter((s: MealSlot) => s.isLocked).map((s: MealSlot) => s.recipeId)
+            )
+
+            return {
+              isRegenerating: false,
+              currentPlan: {
+                ...state.currentPlan,
+                coveragePercent: Math.floor(Math.random() * 20) + 70,
+                nutrientSyncPercent: Math.floor(Math.random() * 20) + 75,
+                slots: state.currentPlan.slots.map((slot: MealSlot) => {
+                  if (lockedSlotIds.includes(slot.id)) return slot
+                  const availableRecipes = recipes.filter((r: Recipe) =>
+                    r.mealType.includes(slot.mealType) && !usedRecipeIds.has(r.id)
+                  )
+                  
+                  // If no unused recipes available, fallback to any available for that type
+                  const pool = availableRecipes.length > 0 ? availableRecipes : recipes.filter(r => r.mealType.includes(slot.mealType))
+                  const randomRecipe = pool[Math.floor(Math.random() * pool.length)]
+                  
+                  if (randomRecipe) usedRecipeIds.add(randomRecipe.id)
+                  return randomRecipe ? { ...slot, recipeId: randomRecipe.id } : slot
+                }),
+              },
+            }
+          })
           get().showToast('Semana regenerada com sucesso!')
         }, 2000)
       },
 
       // Shopping
       shoppingItems: mockShoppingItems,
-      toggleShoppingItem: (id) =>
-        set((state) => ({
-          shoppingItems: state.shoppingItems.map((item) =>
+      toggleShoppingItem: (id: string) =>
+        set((state: AppStore) => ({
+          shoppingItems: state.shoppingItems.map((item: ShoppingItem) =>
             item.id === id ? { ...item, checked: !item.checked } : item
           ),
         })),
-      checkAllShoppingItems: (val) =>
-        set((state) => ({
-          shoppingItems: state.shoppingItems.map((item) => ({ ...item, checked: val })),
+      checkAllShoppingItems: (val: boolean) =>
+        set((state: AppStore) => ({
+          shoppingItems: state.shoppingItems.map((item: ShoppingItem) => ({ ...item, checked: val })),
         })),
-      toggleInPantry: (id) =>
-        set((state) => ({
-          shoppingItems: state.shoppingItems.map((item) =>
+      toggleInPantry: (id: string) =>
+        set((state: AppStore) => ({
+          shoppingItems: state.shoppingItems.map((item: ShoppingItem) =>
             item.id === id ? { ...item, inPantry: !item.inPantry } : item
           ),
         })),
-      setPantryQuantity: (id, qty) =>
-        set((state) => ({
-          shoppingItems: state.shoppingItems.map((item) =>
+      setPantryQuantity: (id: string, qty: number) =>
+        set((state: AppStore) => ({
+          shoppingItems: state.shoppingItems.map((item: ShoppingItem) =>
             item.id === id
               ? {
                   ...item,
@@ -245,8 +279,8 @@ export const useAppStore = create<AppStore>()(
           ),
         })),
       resetShoppingItems: () =>
-        set((state) => ({
-          shoppingItems: state.shoppingItems.map((item) => ({
+        set((state: AppStore) => ({
+          shoppingItems: state.shoppingItems.map((item: ShoppingItem) => ({
             ...item,
             checked: false,
           })),
@@ -254,14 +288,121 @@ export const useAppStore = create<AppStore>()(
 
       // UI
       activeTab: 'plano',
-      setActiveTab: (tab) => set({ activeTab: tab }),
+      setActiveTab: (tab: string) => set({ activeTab: tab }),
       toastMessage: null,
-      showToast: (message) => {
+      showToast: (message: string) => {
         set({ toastMessage: message })
         setTimeout(() => set({ toastMessage: null }), 3000)
       },
       clearToast: () => set({ toastMessage: null }),
       isRegenerating: false,
+      
+      // Data Source & Subscription
+      dataSource: null,
+      subscription: {
+        id: 'sub-001',
+        householdId: 'hh-001',
+        planType: 'semanal',
+        startsAt: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), // Started yesterday
+        endsAt: new Date(new Date().setDate(new Date().getDate() + 6)).toISOString(),  // Ends in 6 days
+        isActive: true,
+      },
+      setDataSource: (source: DataSourceConnection | null) => set({ dataSource: source }),
+      setSubscription: (sub: SubscriptionPeriod | null) => set({ subscription: sub }),
+      
+      // Participation
+      updateMealParticipants: (slotId: string, participantIds: string[]) => {
+        set((state: AppStore) => ({
+          currentPlan: {
+            ...state.currentPlan,
+            slots: state.currentPlan.slots.map((s: MealSlot) =>
+              s.id === slotId ? { ...s, participantIds } : s
+            ),
+          },
+        }))
+        get().recalculateShoppingList()
+        get().showToast('Participantes da refeição atualizados')
+      },
+      isSettingsOpen: false,
+      setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),
+      toggleIngredientAvoidance: (ingredientId: string, memberIds: string[]) => {
+        set((state) => ({
+          ingredients: state.ingredients.map((ing) =>
+            ing.id === ingredientId ? { 
+              ...ing, 
+              memberIds, 
+              compatibilityType: memberIds.length === 0 ? 'excluído' : 'específico' 
+            } : ing
+          ),
+          members: state.members.map((m) => {
+            const ingredient = state.ingredients.find(i => i.id === ingredientId)
+            const ingredientName = ingredient?.name || ''
+            if (memberIds.includes(m.id)) {
+              return {
+                ...m,
+                preferences: {
+                  ...m.preferences,
+                  dislikes: Array.from(new Set([...m.preferences.dislikes, ingredientName]))
+                }
+              }
+            } else {
+              return {
+                ...m,
+                preferences: {
+                  ...m.preferences,
+                  dislikes: m.preferences.dislikes.filter(d => d !== ingredientName)
+                }
+              }
+            }
+          })
+        }))
+        get().showToast('Preferências de ingredientes atualizadas')
+      },
+      recalculateShoppingList: () => {
+        const state = get()
+        const items: ShoppingItem[] = []
+        let idCounter = 1
+
+        state.currentPlan.slots.forEach(slot => {
+          const recipe = state.recipes.find(r => r.id === slot.recipeId)
+          if (!recipe) return
+
+          recipe.ingredients.forEach(ri => {
+            const ingredient = state.ingredients.find(i => i.id === ri.ingredientId)
+            const baseQty = parseFloat(ri.quantity) || 0
+            
+            // Calculate total quantity based on participants and their portion factors
+            const participants = state.members.filter(m => slot.participantIds.includes(m.id))
+            const totalFactor = participants.reduce((acc, m) => acc + (m.portionFactor || 1), 0)
+            const finalQty = baseQty * totalFactor
+
+            // Grouping logic (simplified)
+            const existing = items.find(i => i.name === ri.name && i.unit === ri.unit)
+            if (existing) {
+              existing.quantity = (parseFloat(existing.quantity) + finalQty).toString()
+              existing.memberIds = Array.from(new Set([...existing.memberIds, ...slot.participantIds]))
+              if (!existing.recipes.includes(recipe.title)) {
+                existing.recipes.push(recipe.title)
+              }
+            } else {
+              items.push({
+                id: `shop-${idCounter++}`,
+                name: ri.name,
+                category: (ingredient?.tags?.[0] as ShoppingCategory) || 'Mercearia',
+                quantity: finalQty.toString(),
+                unit: ri.unit,
+                memberIds: [...slot.participantIds],
+                relationType: slot.participantIds.length > 1 ? 'comum' : 'individual',
+                recipes: [recipe.title],
+                checked: false,
+                inPantry: false
+              })
+            }
+          })
+        })
+
+        set({ shoppingItems: items })
+      }
     }),
     {
       name: 'eat-app-storage',
@@ -273,6 +414,8 @@ export const useAppStore = create<AppStore>()(
         currentPlan: state.currentPlan,
         shoppingItems: state.shoppingItems,
         activeTab: state.activeTab,
+        dataSource: state.dataSource,
+        subscription: state.subscription,
       }),
     }
   )

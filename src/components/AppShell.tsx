@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store'
 import BottomNav from './BottomNav'
 import TopAppBar from './TopAppBar'
 import Toast from './Toast'
+import SettingsDrawer from './SettingsDrawer'
 
 // Screens
 import PlanScreen from './screens/PlanScreen'
@@ -46,6 +47,7 @@ export default function AppShell() {
       </main>
       <BottomNav />
       <Toast />
+      <SettingsDrawer />
     </div>
   )
 }
