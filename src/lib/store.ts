@@ -56,6 +56,7 @@ interface AppStore {
   shoppingItems: ShoppingItem[]
   toggleShoppingItem: (id: string) => void
   toggleInPantry: (id: string) => void
+  setPantryQuantity: (id: string, qty: number) => void
   resetShoppingItems: () => void
 
   // UI
@@ -223,6 +224,19 @@ export const useAppStore = create<AppStore>()(
         set((state) => ({
           shoppingItems: state.shoppingItems.map((item) =>
             item.id === id ? { ...item, inPantry: !item.inPantry } : item
+          ),
+        })),
+      setPantryQuantity: (id, qty) =>
+        set((state) => ({
+          shoppingItems: state.shoppingItems.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  pantryQuantity: qty,
+                  // auto-mark as fully in pantry if qty covers the whole amount
+                  inPantry: qty >= parseFloat(item.quantity),
+                }
+              : item
           ),
         })),
       resetShoppingItems: () =>

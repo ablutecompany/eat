@@ -164,13 +164,14 @@ export interface ShoppingItem {
   id: string
   category: ShoppingCategory
   name: string
-  quantity: string
-  unit: string
+  quantity: string       // total needed (e.g. "500")
+  unit: string           // e.g. "g", "kg", "unidades", "ml"
   memberIds: string[]
   relationType: RelationType
   recipes: string[]
   checked: boolean
   inPantry: boolean
+  pantryQuantity?: number  // amount already at home (same unit as quantity)
 }
 
 export interface AppState {
