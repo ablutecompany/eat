@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { Search, Home, Minus, Plus as PlusIcon, X, Check, ShoppingCart } from 'lucide-react'
 import { ShoppingCategory, ShoppingItem } from '@/lib/types'
+import CheckoutDrawer from '../CheckoutDrawer'
 
 const CATEGORIES: ShoppingCategory[] = [
   'Hortifruti', 'Talho', 'Peixaria', 'Lacticínios', 'Mercearia', 'Congelados', 'Outros'
@@ -49,6 +50,7 @@ export default function ShoppingScreen() {
   const [search, setSearch] = useState('')
   const [pantryItem, setPantryItem] = useState<ShoppingItem | null>(null)
   const [pantryInput, setPantryInput] = useState('')
+  const [showCheckout, setShowCheckout] = useState(false)
 
   const getMemberColor = (id: string) => members.find((m) => m.id === id)?.color || '#b0b2b1'
   const getMemberName = (id: string) => members.find((m) => m.id === id)?.name || ''
@@ -281,6 +283,27 @@ export default function ShoppingScreen() {
         })}
       </div>
 
+      {/* ===== FLOATING COMPRAR BUTTON ===== */}
+      <motion.button
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
+        whileTap={{ scale: 0.92 }}
+        whileHover={{ scale: 1.04 }}
+        onClick={() => setShowCheckout(true)}
+        className="fixed right-4 z-40 flex items-center gap-2.5 btn-primary-gradient text-white pl-4 pr-5 py-3.5 rounded-full font-bold text-sm shadow-[0_8px_32px_rgba(68,102,86,0.45)] active:shadow-none"
+        style={{ bottom: 'calc(80px + 16px)' }}
+        aria-label="Comprar"
+      >
+        <ShoppingCart size={18} />
+        Comprar
+        {selectedCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-[#446656] text-[10px] font-bold flex items-center justify-center shadow-sm">
+            {selectedCount}
+          </span>
+        )}
+      </motion.button>
+
       {/* ===== PANTRY QUANTITY DRAWER ===== */}
       <AnimatePresence>
         {pantryItem && (
@@ -426,6 +449,9 @@ export default function ShoppingScreen() {
           </>
         )}
       </AnimatePresence>
+
+      {/* ===== CHECKOUT DRAWER ===== */}
+      {showCheckout && <CheckoutDrawer onClose={() => setShowCheckout(false)} />}
     </div>
   )
 }
