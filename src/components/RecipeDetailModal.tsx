@@ -6,16 +6,22 @@ import { X, Clock, Plus, ChevronRight } from 'lucide-react'
 
 interface Props {
   recipeId: string
+  slotId?: string // Optional context from the plan
   onClose: () => void
 }
 
-export default function RecipeDetailModal({ recipeId, onClose }: Props) {
-  const { recipes, members, showToast } = useAppStore()
+export default function RecipeDetailModal({ recipeId, slotId, onClose }: Props) {
+  const { recipes, members, currentPlan, showToast } = useAppStore()
   const recipe = recipes.find((r) => r.id === recipeId)
+  const slot = slotId ? currentPlan.slots.find(s => s.id === slotId) : null
 
   if (!recipe) return null
 
-  const activeMembers = members.filter((m) => m.isActive)
+  // Calculate dynamic portion factor
+  // If slot context exists, use participantIds. Otherwise use all active members.
+  const relevantMemberIds = slot ? slot.participantIds : members.filter(m => m.isActive).map(m => m.id)
+  const relevantMembers = members.filter(m => relevantMemberIds.includes(m.id))
+  const totalPortionFactor = relevantMembers.reduce((sum, m) => sum + m.portionFactor, 0)
 
   return (
     <AnimatePresence>
@@ -67,10 +73,16 @@ export default function RecipeDetailModal({ recipeId, onClose }: Props) {
 
             {/* Compatibility */}
             <div className="bg-white rounded-3xl p-4 mb-4 shadow-ambient">
-              <h3 className="font-display font-bold text-sm text-[#303333] mb-3">Compatibilidade</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold text-sm text-[#303333]">Participantes e Adaptação</h3>
+                <span className="text-[10px] bg-[#f3f4f3] text-[#5d605f] px-2 py-0.5 rounded-full font-bold">
+                  Factor Total: {totalPortionFactor.toFixed(2)}x
+                </span>
+              </div>
               <div className="space-y-2">
-                {activeMembers.map((m) => {
+                {relevantMembers.map((m) => {
                   const c = recipe.compatibilityByMember.find((cb) => cb.memberId === m.id)
+                  const isAdapted = slot?.adaptedMemberIds.includes(m.id) || c?.status === 'adaptado'
                   return (
                     <div key={m.id} className="flex items-center gap-3">
                       <div
@@ -82,11 +94,11 @@ export default function RecipeDetailModal({ recipeId, onClose }: Props) {
                       <span className="text-sm font-medium text-[#303333]">{m.name}</span>
                       <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
                         c?.status === 'compatível' ? 'bg-[#c5ebd7] text-[#446656]' :
-                        c?.status === 'adaptado' ? 'bg-[#b7effb] text-[#2e6771]' :
+                        isAdapted ? 'bg-[#b7effb] text-[#2e6771]' :
                         'bg-[#ffd7d6] text-[#a83836]'
                       }`}>
                         {c?.status === 'compatível' ? '✓ Compatível' : 
-                         c?.status === 'adaptado' ? '~ Adaptado' : '✗ Incompatível'}
+                         isAdapted ? '~ Adaptado' : '✗ Incompatível'}
                       </span>
                     </div>
                   )
@@ -94,7 +106,7 @@ export default function RecipeDetailModal({ recipeId, onClose }: Props) {
               </div>
               {recipe.adaptationNotes.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-[#f3f4f3]">
-                  <p className="text-xs text-[#5d605f] font-medium mb-1">Adaptações necessárias:</p>
+                  <p className="text-xs text-[#5d605f] font-medium mb-1">Dicas de adaptação:</p>
                   {recipe.adaptationNotes.map((note, i) => (
                     <p key={i} className="text-xs text-[#2e6771]">· {note}</p>
                   ))}
@@ -104,25 +116,31 @@ export default function RecipeDetailModal({ recipeId, onClose }: Props) {
 
             {/* Ingredients */}
             <div className="bg-white rounded-3xl p-4 mb-4 shadow-ambient">
-              <h3 className="font-display font-bold text-sm text-[#303333] mb-3">Ingredientes</h3>
+              <h3 className="font-display font-bold text-sm text-[#303333] mb-3">Ingredientes (Ajustados)</h3>
               <div className="space-y-2">
-                {recipe.ingredients.map((ing, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm">
-                    <span className="text-[#303333]">{ing.name}</span>
-                    <span className="text-[#5d605f]">{ing.quantity} {ing.unit}</span>
-                  </div>
-                ))}
+                {recipe.ingredients.map((ing, i) => {
+                  const baseQty = parseFloat(ing.quantity)
+                  const displayQty = isNaN(baseQty) ? ing.quantity : (baseQty * totalPortionFactor).toFixed(0)
+                  return (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-[#303333]">{ing.name}</span>
+                      <span className="text-[#5d605f] font-medium">{displayQty} {ing.unit}</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Nutrients */}
-            <div className="bg-white rounded-3xl p-4 mb-4 shadow-ambient">
-              <h3 className="font-display font-bold text-sm text-[#303333] mb-3">Nutrientes principais</h3>
-              <div className="flex flex-wrap gap-2">
+            {/* Nutrients Dashboard */}
+            <div className="bg-white rounded-3xl p-5 mb-4 shadow-ambient overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#c5ebd7]/20 rounded-full -mr-16 -mt-16 blur-3xl" />
+              <h3 className="font-display font-bold text-sm text-[#303333] mb-4">Perfil Nutricional</h3>
+              <div className="grid grid-cols-3 gap-4">
                 {recipe.nutrients.map((n, i) => (
-                  <span key={i} className="text-xs bg-[#f8dfc0] text-[#6e5c44] px-3 py-1 rounded-full font-medium">
-                    {n.name}: {n.value}
-                  </span>
+                  <div key={i} className="flex flex-col items-center p-3 bg-[#faf9f8] rounded-2xl">
+                    <span className="text-[10px] text-[#b0b2b1] uppercase tracking-wider font-bold mb-1">{n.name}</span>
+                    <span className="text-sm font-display font-bold text-[#446656]">{n.value}</span>
+                  </div>
                 ))}
               </div>
             </div>

@@ -145,7 +145,13 @@ export const useAppStore = create<AppStore>()(
       // Plan
       currentPlan: mockMealPlan,
       activeDayIndex: new Date().getDay() === 0 ? 6 : new Date().getDay() - 1,
+      // ===========================================================================
+      // DATA & PROFILES ACTIONS
+      // ===========================================================================
       setActiveDayIndex: (day: number) => set({ activeDayIndex: day }),
+      // ===========================================================================
+      // PLANNING ENGINE ACTIONS
+      // ===========================================================================
       toggleSlotLock: (slotId: string) => {
         const slot = get().currentPlan.slots.find((s: MealSlot) => s.id === slotId)
         set((state: AppStore) => ({

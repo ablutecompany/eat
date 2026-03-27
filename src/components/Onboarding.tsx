@@ -176,14 +176,8 @@ export default function Onboarding() {
                 <Leaf size={28} className="text-[#3b5bdb]" />
               </div>
               <h2 className="text-3xl font-display font-bold text-[#303333] mb-3">Conectar Dados</h2>
-              <div className="bg-[#f0f4ff] border border-[#d1e0ff] p-4 rounded-2xl mb-6">
-                <p className="text-[#3b5bdb] text-sm font-semibold mb-1">ablute_ wellness</p>
-                <p className="text-[#5d605f] text-xs leading-relaxed">
-                  Esta app utiliza dados nutricionais e resultados relevantes dos utilizadores ativos associados à sua conta em ablute_ wellness, para criar planos alimentares personalizados e convergentes entre os perfis selecionados.
-                </p>
-              </div>
               <p className="text-sm text-[#5d605f] leading-relaxed mb-8">
-                Ao continuar, aceita a partilha destes dados com esta app para efeitos de planeamento alimentar.
+                Esta app utiliza dados nutricionais e resultados relevantes dos utilizadores ativos associados à sua conta em ablute_ wellness, para criar planos alimentares personalizados e convergentes entre os perfis selecionados. Ao continuar, aceita a partilha destes dados com esta app para efeitos de planeamento alimentar.
               </p>
               
               <motion.button

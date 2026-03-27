@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { RefreshCw, Lock, Unlock, ArrowLeftRight, Eye, ChevronRight } from 'lucide-react'
+import { RefreshCw, Lock, Unlock, ArrowLeftRight, Eye, ChevronRight, Settings } from 'lucide-react'
 import SwapMealDrawer from '../SwapMealDrawer'
 import RecipeDetailModal from '../RecipeDetailModal'
 import MealParticipantsModal from '../MealParticipantsModal'
@@ -34,10 +34,11 @@ export default function PlanScreen() {
     toggleSlotLock,
     regeneratePlan,
     isRegenerating,
+    setSettingsOpen,
   } = useAppStore()
 
   const [swapSlot, setSwapSlot] = useState<MealSlot | null>(null)
-  const [viewRecipeId, setViewRecipeId] = useState<string | null>(null)
+  const [viewRecipe, setViewRecipe] = useState<{ id: string, slotId?: string } | null>(null)
   const [participantSlot, setParticipantSlot] = useState<MealSlot | null>(null)
 
   const daySlots = currentPlan.slots.filter((s) => s.day === activeDayIndex)
@@ -57,13 +58,22 @@ export default function PlanScreen() {
   return (
     <div className="px-5 pt-4">
       {/* Coverage Hero */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-display font-bold text-[#303333] mb-1">
-          Plano desta semana
-        </h1>
-        <p className="text-sm text-[#5d605f]">
-          {activeMembers.length} membros ativos · {currentPlan.slots.filter(s => s.isLocked).length} refeições bloqueadas
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-[#303333] mb-1">
+            Plano desta semana
+          </h1>
+          <p className="text-sm text-[#5d605f]">
+            {activeMembers.length} membros ativos · {currentPlan.slots.filter(s => s.isLocked).length} bloqueadas
+          </p>
+        </div>
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setSettingsOpen(true)}
+          className="w-10 h-10 rounded-2xl bg-white shadow-ambient-sm flex items-center justify-center text-[#5d605f]"
+        >
+          <Settings size={20} />
+        </motion.button>
       </div>
 
       {/* Coverage Card */}
@@ -109,7 +119,9 @@ export default function PlanScreen() {
         {DAYS.map((day, i) => {
           const isActive = i === activeDayIndex
           const isToday = i === today
+          const isPast = i < today
           const hasSlots = currentPlan.slots.some((s) => s.day === i)
+          
           return (
             <motion.button
               key={day}
@@ -118,7 +130,9 @@ export default function PlanScreen() {
               className={`flex flex-col items-center min-w-[52px] py-2.5 px-3 rounded-2xl transition-all duration-200 ${
                 isActive
                   ? 'bg-[#446656] text-white shadow-ambient-md'
-                  : 'bg-white text-[#5d605f]'
+                  : isPast 
+                    ? 'bg-[#f3f4f3] text-[#b0b2b1] opacity-60' 
+                    : 'bg-white text-[#5d605f]'
               }`}
             >
               <span className={`text-[10px] font-medium mb-0.5 ${isActive ? 'text-white/80' : 'text-[#b0b2b1]'}`}>
@@ -127,9 +141,6 @@ export default function PlanScreen() {
               <span className="text-base font-display font-bold">{getDayLabel(i)}</span>
               {isToday && !isActive && (
                 <div className="w-1 h-1 rounded-full bg-[#446656] mt-0.5" />
-              )}
-              {hasSlots && isActive && (
-                <div className="w-1 h-1 rounded-full bg-white/60 mt-0.5" />
               )}
             </motion.button>
           )
@@ -235,7 +246,7 @@ export default function PlanScreen() {
                     </motion.button>
                     <motion.button
                       whileTap={{ scale: 0.96 }}
-                      onClick={() => setViewRecipeId(recipe.id)}
+                      onClick={() => setViewRecipe({ id: recipe.id, slotId: slot.id })}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-[#f3f4f3] text-[#5d605f] py-2.5 rounded-2xl text-sm font-medium"
                     >
                       <Eye size={14} />
@@ -272,10 +283,11 @@ export default function PlanScreen() {
         slot={swapSlot}
         onClose={() => setSwapSlot(null)}
       />
-      {viewRecipeId && (
+      {viewRecipe && (
         <RecipeDetailModal
-          recipeId={viewRecipeId}
-          onClose={() => setViewRecipeId(null)}
+          recipeId={viewRecipe.id}
+          slotId={viewRecipe.slotId}
+          onClose={() => setViewRecipe(null)}
         />
       )}
       <MealParticipantsModal

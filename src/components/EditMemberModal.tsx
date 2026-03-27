@@ -21,6 +21,8 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
   const [newAllergy, setNewAllergy] = useState('')
   const [allergies, setAllergies] = useState(member?.preferences.allergies || [])
   const [dislikes, setDislikes] = useState(member?.preferences.dislikes || [])
+  const [age, setAge] = useState(member?.age || 0)
+  const [notes, setNotes] = useState(member?.notes || '')
 
   if (!member) return null
 
@@ -29,6 +31,8 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
       name,
       type,
       portionFactor,
+      age: age || undefined,
+      notes,
       preferences: {
         ...member.preferences,
         allergies,
@@ -93,8 +97,8 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
             </div>
           </div>
 
-          {/* Type & Portion Factor */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Type, Age & Portion Factor */}
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-1">Tipo</label>
               <select
@@ -108,7 +112,16 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-1">Portção (Factor)</label>
+              <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-1">Idade</label>
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => setAge(parseInt(e.target.value))}
+                className="w-full bg-[#f3f4f3] border-none rounded-2xl px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-[#446656] outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-1">Porção</label>
               <input
                 type="number"
                 step="0.1"
@@ -119,6 +132,17 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
                 className="w-full bg-[#f3f4f3] border-none rounded-2xl px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-[#446656] outline-none"
               />
             </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-1">Notas e Recomendações</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: Prefere refeições leves, acompanhamento médico..."
+              className="w-full bg-[#f3f4f3] border-none rounded-2xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-[#446656] outline-none min-h-[80px]"
+            />
           </div>
 
           {/* Allergies */}
@@ -165,6 +189,28 @@ export default function EditMemberModal({ memberId, onClose }: EditMemberModalPr
               ))}
               {dislikes.length === 0 && <p className="text-xs text-[#b0b2b1] italic">Nenhum ingrediente marcado a evitar.</p>}
             </div>
+          </div>
+
+          {/* Health Files */}
+          <div>
+            <label className="block text-xs font-bold text-[#5d605f] uppercase tracking-wider mb-2">Ficheiros e Exames</label>
+            <div className="space-y-2 mb-3">
+              {member.uploadedFiles.map((f) => (
+                <div key={f.id} className="flex items-center gap-3 p-3 bg-[#f3f4f3] rounded-2xl">
+                  <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-[#446656]">
+                    <Check size={16} />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-xs font-bold text-[#303333] truncate">{f.fileName}</p>
+                    <p className="text-[10px] text-[#b0b2b1]">{f.processingStatus}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="w-full py-3 border-2 border-dashed border-[#e1e3e2] rounded-2xl text-[#b0b2b1] text-xs font-bold flex items-center justify-center gap-2">
+              <Plus size={14} />
+              Carregar PDF / Exame
+            </button>
           </div>
 
           <button
