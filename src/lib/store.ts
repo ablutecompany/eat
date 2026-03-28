@@ -1,6 +1,30 @@
 'use client'
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+
+const safeStorage = {
+  getItem: (name: string) => {
+    try {
+      return localStorage.getItem(name)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value)
+    } catch {
+      // Ignore: Storage is blocked
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      localStorage.removeItem(name)
+    } catch {
+      // Ignore
+    }
+  },
+}
 import {
   Household,
   HouseholdMember,
@@ -535,6 +559,7 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: 'eat-app-storage',
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         onboardingComplete: state.onboardingComplete,
         onboardingStep: state.onboardingStep,
