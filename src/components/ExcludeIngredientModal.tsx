@@ -5,16 +5,25 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
+import { useEffect } from 'react'
+
 interface ExcludeIngredientModalProps {
   ingredientName: string
   isOpen: boolean
+  initialSelectedIds?: string[]
   onClose: () => void
   onConfirm: (memberIds: string[]) => void
 }
 
-export default function ExcludeIngredientModal({ ingredientName, isOpen, onClose, onConfirm }: ExcludeIngredientModalProps) {
+export default function ExcludeIngredientModal({ ingredientName, isOpen, initialSelectedIds = [], onClose, onConfirm }: ExcludeIngredientModalProps) {
   const { members } = useAppStore()
-  const [selectedIds, setSelectedIds] = useState<string[]>(members.filter(m => m.isActive).map(m => m.id))
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds)
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIds(initialSelectedIds)
+    }
+  }, [isOpen, initialSelectedIds])
 
   const toggleMember = (id: string) => {
     setSelectedIds(prev =>

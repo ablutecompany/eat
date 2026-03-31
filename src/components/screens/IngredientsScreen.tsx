@@ -133,20 +133,24 @@ export default function IngredientsScreen() {
       <AvoidMemberModal
         ingredientName={avoidingIngredient?.name || ''}
         isOpen={!!avoidingIngredient}
+        initialSelectedIds={avoidingIngredient?.memberIds || []}
         onClose={() => setAvoidingIngredient(null)}
         onConfirm={(memberIds) => {
           if (avoidingIngredient) {
             toggleIngredientAvoidance(avoidingIngredient.id, memberIds)
+            setAvoidingIngredient(null)
           }
         }}
       />
       <ExcludeIngredientModal
         ingredientName={excludingIngredient?.name || ''}
         isOpen={!!excludingIngredient}
+        initialSelectedIds={excludingIngredient?.memberIds || []}
         onClose={() => setExcludingIngredient(null)}
         onConfirm={(memberIds) => {
           if (excludingIngredient) {
             toggleIngredientExclusion(excludingIngredient.id, memberIds)
+            setExcludingIngredient(null)
           }
         }}
       />

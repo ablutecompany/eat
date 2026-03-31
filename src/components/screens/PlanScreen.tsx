@@ -1,15 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { RefreshCw, Lock, Unlock, ArrowLeftRight, Eye, ChevronRight, Settings } from 'lucide-react'
+import { RefreshCw, Lock, Unlock, ArrowLeftRight, Eye, ChevronRight, Settings, Link } from 'lucide-react'
 import SwapMealDrawer from '../SwapMealDrawer'
 import RecipeDetailModal from '../RecipeDetailModal'
 import MealParticipantsModal from '../MealParticipantsModal'
 import { MealSlot } from '@/lib/types'
 
-const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 const MEAL_LABELS: Record<string, string> = {
   'pequeno-almoço': 'Pequeno-almoço',
   almoço: 'Almoço',
@@ -53,6 +52,25 @@ export default function PlanScreen() {
     d.setDate(d.getDate() + index)
     return d.getDate()
   }
+
+  const isExpired = subscription ? new Date() > new Date(subscription.endsAt) : false
+
+  useEffect(() => {
+    if (subscription && !isExpired) {
+      const now = new Date()
+      const end = new Date(subscription.endsAt)
+      const start = new Date(subscription.startsAt)
+      if (now <= end && now >= start) {
+        const startDay = new Date(subscription.startsAt)
+        startDay.setHours(0,0,0,0)
+        const diffTime = now.getTime() - startDay.getTime()
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        if (diffDays >= 0 && diffDays < 7) {
+          setActiveDayIndex(diffDays)
+        }
+      }
+    }
+  }, [subscription, isExpired, setActiveDayIndex])
 
   return (
     <div className="px-5 pt-4">
@@ -123,15 +141,20 @@ export default function PlanScreen() {
 
       {/* Day Selector */}
       <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-hide pb-1">
-        {DAYS.map((day, i) => {
+        {Array.from({ length: 7 }).map((_, i) => {
+          const d = new Date(startDate)
+          d.setDate(d.getDate() + i)
+          let day = d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '').replace('-feira', '')
+          day = day.charAt(0).toUpperCase() + day.slice(1)
+          const now = new Date()
+          const isToday = d.toDateString() === now.toDateString()
+          const isPast = d < new Date(now.setHours(0,0,0,0))
           const isActive = i === activeDayIndex
-          const isToday = i === today
-          const isPast = i < today
           const hasSlots = currentPlan.slots.some((s) => s.day === i)
           
           return (
             <motion.button
-              key={day}
+              key={`day-${i}`}
               onClick={() => setActiveDayIndex(i)}
               whileTap={{ scale: 0.95 }}
               className={`flex flex-col items-center min-w-[52px] py-2.5 px-3 rounded-2xl transition-all duration-200 ${
@@ -155,13 +178,46 @@ export default function PlanScreen() {
       </div>
 
       {/* Meal Cards */}
+      {isExpired && (
+        <div className="bg-[#ffd7d6] text-[#a83836] rounded-2xl p-4 mb-5 shadow-ambient flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center shrink-0">
+            <Lock size={16} />
+          </div>
+          <div>
+            <p className="text-sm font-bold">Plano Expirado</p>
+            <p className="text-xs opacity-90">Renova o teu plano para organizares as próximas semanas.</p>
+          </div>
+        </div>
+      )}
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
           {daySlots.map((slot) => {
             const recipe = recipes.find((r) => r.id === slot.recipeId)
             if (!recipe) return null
-            const compat = COMPAT_CONFIG[slot.compatibilityStatus]
-            const slotMembers = members.filter((m) => slot.memberIds.includes(m.id))
+            const isExplicitEmpty = slot.participantIds !== undefined && slot.participantIds.length === 0
+            const activeParticipants = isExplicitEmpty ? [] : (slot.participantIds ? members.filter((m) => slot.participantIds.includes(m.id)) : activeMembers)
+            
+            let incompatibleCount = 0
+            const recipeIngredients = recipe.ingredients.map(i => i.name.toLowerCase())
+            for (const p of activeParticipants) {
+              const allergies = [...(p.preferences.allergies || []), ...(p.preferences.excludedIngredients || [])].map(a => a.toLowerCase())
+              if (allergies.some(a => recipeIngredients.some(ing => ing.includes(a)))) {
+                incompatibleCount++
+              }
+            }
+
+            const isSubgroup = slot.participantIds && slot.participantIds.length < activeMembers.length && slot.participantIds.length > 0;
+            let compat = COMPAT_CONFIG[slot.compatibilityStatus] || COMPAT_CONFIG['todos']
+
+            if (incompatibleCount > 0) {
+              compat = { 
+                label: `Incompatível (${incompatibleCount} perfil${incompatibleCount > 1 ? 's' : ''})`, 
+                color: '#a83836', 
+                bg: '#ffd7d6' 
+              }
+            } else if (isSubgroup && slot.compatibilityStatus === 'todos') {
+              compat = { label: 'Subgrupo', color: '#6e5c44', bg: '#f8dfc0' }
+            }
 
             return (
               <motion.div
@@ -224,20 +280,38 @@ export default function PlanScreen() {
                         e.stopPropagation()
                         setParticipantSlot(slot)
                       }}
-                      className="flex items-center gap-1 ml-auto cursor-pointer p-1 rounded-xl hover:bg-[#f3f4f3] transition-colors"
+                      className="flex items-center gap-1.5 ml-auto cursor-pointer p-1 rounded-xl hover:bg-[#f3f4f3] transition-colors"
                     >
-                      {slotMembers.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${
-                            slot.adaptedMemberIds.includes(m.id) ? 'ring-2 ring-[#2e6771]' : ''
-                          } ${!slot.participantIds.includes(m.id) ? 'opacity-30 grayscale' : ''}`}
-                          style={{ backgroundColor: m.color }}
-                          title={m.name + (slot.adaptedMemberIds.includes(m.id) ? ' (adaptado)' : '') + (!slot.participantIds.includes(m.id) ? ' (não participa)' : '')}
-                        >
-                          {m.name[0]}
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1">
+                           {activeParticipants.length === 0 ? (
+                             <span className="text-[9px] font-bold text-[#a83836] bg-[#ffd7d6] px-1.5 py-0.5 rounded shadow-sm">Nenhum</span>
+                           ) : isSubgroup ? (
+                             <span className="text-[9px] font-bold text-[#6e5c44] bg-[#f8dfc0] px-1.5 py-0.5 rounded shadow-sm">Subgrupo</span>
+                           ) : (
+                             <span className="text-[9px] font-bold text-[#446656] bg-[#c5ebd7]/60 px-1.5 py-0.5 rounded shadow-sm">Todos ativos</span>
+                           )}
+                           {activeParticipants.some(m => m.sourceOrigin === 'ablute_wellness') && (
+                             <span className="text-[#2e6771] bg-[#b7effb]/40 w-4 h-4 rounded-full flex items-center justify-center shadow-sm" title="Inclui perfis ligados à source">
+                               <Link size={8} />
+                             </span>
+                           )}
                         </div>
-                      ))}
+                        <div className="flex items-center gap-0.5">
+                          {activeParticipants.map((m) => (
+                            <div
+                              key={m.id}
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shadow-sm ${
+                                slot.adaptedMemberIds.includes(m.id) ? 'ring-[1.5px] ring-[#2e6771] ring-offset-1' : ''
+                              }`}
+                              style={{ backgroundColor: m.color }}
+                              title={m.name + (slot.adaptedMemberIds.includes(m.id) ? ' (adaptado)' : '')}
+                            >
+                              {m.name[0]}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </motion.div>
                   </div>
 

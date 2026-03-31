@@ -22,17 +22,34 @@ export default function SwapMealDrawer({ slot, onClose }: Props) {
       .map((s: MealSlot) => s.recipeId)
   )
 
-  // Find alternatives: same meal type, different recipe, not already in plan
-  const alternatives = recipes.filter(
-    (r) => r.mealType.includes(slot.mealType) && r.id !== slot.recipeId && !usedRecipeIds.has(r.id)
-  )
-
-  // Fallback if all recipes are used — show same-type recipes excluding only current
-  const displayAlts = alternatives.length > 0 ? alternatives : recipes.filter(
-    (r) => r.mealType.includes(slot.mealType) && r.id !== slot.recipeId
-  )
-
+  const slotMembers = members.filter((m) => slot.participantIds?.includes(m.id))
   const activeMembers = members.filter((m) => m.isActive)
+  const effectiveParticipants = slotMembers.length > 0 ? slotMembers : activeMembers
+
+  const checkRecipe = (r: any) => {
+    let hasAllergy = false
+    let penalty = 0
+    const recipeIngredients = r.ingredients.map((i: any) => i.name.toLowerCase())
+
+    for (const m of effectiveParticipants) {
+      const allergies = [...(m.preferences.allergies || []), ...(m.preferences.excludedIngredients || [])].map(a => a.toLowerCase())
+      if (allergies.some(a => recipeIngredients.some((ing: string) => ing.includes(a)))) hasAllergy = true
+
+      const dislikes = (m.preferences.dislikes || []).map((d: string) => d.toLowerCase())
+      if (dislikes.some((d: string) => recipeIngredients.some((ing: string) => ing.includes(d)))) penalty += 1
+    }
+    return { hasAllergy, penalty }
+  }
+
+  // Find alternatives: same meal type, different recipe, not already in plan, NO allergies
+  const alternatives = recipes.filter(
+    (r) => r.mealType.includes(slot.mealType) && r.id !== slot.recipeId && !usedRecipeIds.has(r.id) && !checkRecipe(r).hasAllergy
+  ).sort((a, b) => checkRecipe(a).penalty - checkRecipe(b).penalty)
+
+  // Fallback if all strictly non-used recipes are gone — show same-type recipes excluding only current, but STILL check allergies
+  const displayAlts = alternatives.length > 0 ? alternatives : recipes.filter(
+    (r) => r.mealType.includes(slot.mealType) && r.id !== slot.recipeId && !checkRecipe(r).hasAllergy
+  ).sort((a, b) => checkRecipe(a).penalty - checkRecipe(b).penalty)
 
   const handleSwap = (recipeId: string) => {
     swapMealSlot(slot.id, recipeId)
@@ -136,6 +153,9 @@ export default function SwapMealDrawer({ slot, onClose }: Props) {
                             </div>
                           )
                         })}
+                        {checkRecipe(recipe).penalty > 0 && (
+                          <span className="text-[10px] bg-[#f8dfc0] text-[#6e5c44] ml-2 px-2 py-0.5 rounded-full font-medium">A evitar</span>
+                        )}
                         {adaptedCount > 0 && (
                           <span className="text-[10px] text-[#2e6771] ml-1">Adaptada</span>
                         )}

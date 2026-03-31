@@ -6,16 +6,25 @@ import { X, Check } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { HouseholdMember } from '@/lib/types'
 
+import { useEffect } from 'react'
+
 interface AvoidMemberModalProps {
   ingredientName: string
   isOpen: boolean
+  initialSelectedIds?: string[]
   onClose: () => void
   onConfirm: (memberIds: string[]) => void
 }
 
-export default function AvoidMemberModal({ ingredientName, isOpen, onClose, onConfirm }: AvoidMemberModalProps) {
+export default function AvoidMemberModal({ ingredientName, isOpen, initialSelectedIds = [], onClose, onConfirm }: AvoidMemberModalProps) {
   const { members } = useAppStore()
-  const [selectedIds, setSelectedIds] = useState<string[]>(members.filter(m => m.isActive).map(m => m.id))
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds)
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIds(initialSelectedIds)
+    }
+  }, [isOpen, initialSelectedIds])
 
   const toggleMember = (id: string) => {
     setSelectedIds(prev => 

@@ -21,7 +21,7 @@ export default function RecipeDetailModal({ recipeId, slotId, onClose }: Props) 
   // If slot context exists, use participantIds. Otherwise use all active members.
   const relevantMemberIds = slot ? slot.participantIds : members.filter(m => m.isActive).map(m => m.id)
   const relevantMembers = members.filter(m => relevantMemberIds.includes(m.id))
-  const totalPortionFactor = relevantMembers.reduce((sum, m) => sum + m.portionFactor, 0)
+  const totalPortionFactor = relevantMembers.reduce((sum, m) => sum + (m.type === 'criança' ? 0.75 : 1.0), 0)
 
   return (
     <AnimatePresence>

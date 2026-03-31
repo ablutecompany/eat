@@ -16,8 +16,9 @@ export interface DataSourceConnection {
   householdId: string
   sourceName: 'ablute_wellness' | string
   isActive: boolean
-  consentAcceptedAt: string
-  lastSyncedAt: string
+  consentAcceptedAt: string | null
+  lastSyncedAt: string | null
+  syncStatus: 'não-sincronizado' | 'sincronizado' | 'a-aguardar'
 }
 
 export interface SubscriptionPeriod {
@@ -27,6 +28,14 @@ export interface SubscriptionPeriod {
   startsAt: string
   endsAt: string
   isActive: boolean
+}
+
+export interface SourceProfile {
+  id: string
+  displayName: string
+  memberType: MemberType
+  age?: number
+  sourceName: string
 }
 
 export interface HouseholdMember {
@@ -44,6 +53,9 @@ export interface HouseholdMember {
   preferences: MemberPreferences
   nutrientTargets: NutrientTarget[]
   uploadedFiles: MemberUploadedFile[]
+  sourceOrigin?: 'local' | 'ablute_wellness'
+  sourceProfileId?: string | null
+  sourceLinkedAt?: string | null
 }
 
 export interface MemberPreferences {

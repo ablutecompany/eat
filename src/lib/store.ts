@@ -37,7 +37,8 @@ import {
   SubscriptionPeriod,
   MemberCompatibility,
   ShoppingCategory,
-  RelationType
+  RelationType,
+  SourceProfile
 } from './types'
 import {
   mockHousehold,
@@ -65,6 +66,12 @@ interface AppStore {
   updateMember: (id: string, updates: Partial<HouseholdMember>) => void
   removeMember: (id: string) => void
   toggleMemberActive: (id: string) => void
+
+  // External Profiles
+  availableSourceProfiles: SourceProfile[]
+  seedMockSourceProfiles: () => void
+  linkMemberToSourceProfile: (memberId: string, sourceProfileId: string) => void
+  unlinkMemberFromSource: (memberId: string) => void
 
   // Recipes
   recipes: Recipe[]
@@ -101,7 +108,9 @@ interface AppStore {
   // Data Source & Subscription
   dataSource: DataSourceConnection | null
   subscription: SubscriptionPeriod | null
-  setDataSource: (source: DataSourceConnection | null) => void
+  acceptDataSourceConsent: (sourceName: string, householdId: string) => void
+  markDataSourceSynced: () => void
+  clearDataSource: () => void
   setSubscription: (sub: SubscriptionPeriod | null) => void
   
   // Participation
@@ -159,6 +168,33 @@ export const useAppStore = create<AppStore>()(
         }
         get().recalculateShoppingList()
       },
+
+      // External Profiles
+      availableSourceProfiles: [] as SourceProfile[],
+      seedMockSourceProfiles: () => set({
+        availableSourceProfiles: [
+          { id: 'ext-p1', displayName: 'João Silva', memberType: 'adulto', age: 35, sourceName: 'ablute_wellness' },
+          { id: 'ext-p2', displayName: 'Maria Silva', memberType: 'adulto', age: 33, sourceName: 'ablute_wellness' },
+          { id: 'ext-p3', displayName: 'Pedro Silva', memberType: 'criança', age: 8, sourceName: 'ablute_wellness' },
+          { id: 'ext-p4', displayName: 'Ana Silva', memberType: 'criança', age: 4, sourceName: 'ablute_wellness' }
+        ]
+      }),
+      linkMemberToSourceProfile: (memberId: string, sourceProfileId: string) => set((state: AppStore) => ({
+        members: state.members.map(m => m.id === memberId ? {
+          ...m,
+          sourceOrigin: 'ablute_wellness',
+          sourceProfileId,
+          sourceLinkedAt: new Date().toISOString()
+        } : m)
+      })),
+      unlinkMemberFromSource: (memberId: string) => set((state: AppStore) => ({
+        members: state.members.map(m => m.id === memberId ? {
+          ...m,
+          sourceOrigin: 'local',
+          sourceProfileId: null,
+          sourceLinkedAt: null
+        } : m)
+      })),
 
       // Recipes
       recipes: mockRecipes,
@@ -260,31 +296,7 @@ export const useAppStore = create<AppStore>()(
           }
           const preferredTags = GOAL_TAGS[goal] ?? []
 
-          const scoreRecipe = (r: Recipe): number => {
-            // Hard penalty: any active member fully incompatible (allergy-driven)
-            const hasAllergy = activeMembers.some((m: HouseholdMember) => {
-              const compat = r.compatibilityByMember.find(
-                (c: MemberCompatibility) => c.memberId === m.id
-              )
-              return compat?.status === 'incompatível'
-            })
-            if (hasAllergy) return -1  // excluded from pool
-
-            // Score by goal-preferred tags
-            let score = 0
-            for (const tag of preferredTags) {
-              if (r.tags.includes(tag)) score += 2
-            }
-            // Minor bonus for 'compatível' across all active members
-            const allCompatible = activeMembers.every((m: HouseholdMember) => {
-              const compat = r.compatibilityByMember.find(
-                (c: MemberCompatibility) => c.memberId === m.id
-              )
-              return !compat || compat.status !== 'incompatível'
-            })
-            if (allCompatible) score += 1
-            return score
-          }
+          // The scoring logic is now specific to each slot, defined below.
 
           const lockedSlotIds = state.currentPlan.slots
             .filter((s: MealSlot) => s.isLocked)
@@ -293,6 +305,12 @@ export const useAppStore = create<AppStore>()(
           set((st: AppStore) => {
             const usedRecipeIds = new Set(
               st.currentPlan.slots.filter((s: MealSlot) => s.isLocked).map((s: MealSlot) => s.recipeId)
+            )
+            const usedTags = new Set(
+              st.currentPlan.slots
+                .filter((s: MealSlot) => s.isLocked)
+                .map((s: MealSlot) => recipes.find((r: Recipe) => r.id === s.recipeId)?.tags || [])
+                .flat()
             )
 
             return {
@@ -312,10 +330,38 @@ export const useAppStore = create<AppStore>()(
                     ? forType
                     : recipes.filter((r: Recipe) => r.mealType.includes(slot.mealType))
 
+                  const slotMembers = activeMembers.filter(m => slot.participantIds?.includes(m.id))
+                  const effectiveParticipants = slotMembers.length > 0 ? slotMembers : activeMembers
+
+                  const scoreRecipeForSlot = (r: Recipe, currentUsedTags: Set<string>): number => {
+                    let hasAllergy = false
+                    let dislikePenalty = 0
+                    const recipeIngredients = r.ingredients.map(i => i.name.toLowerCase())
+
+                    for (const m of effectiveParticipants) {
+                      const allergies = [...(m.preferences.allergies || []), ...(m.preferences.excludedIngredients || [])].map(a => a.toLowerCase())
+                      if (allergies.some(a => recipeIngredients.some(ing => ing.includes(a)))) hasAllergy = true
+
+                      const dislikes = (m.preferences.dislikes || []).map(d => d.toLowerCase())
+                      if (dislikes.some(d => recipeIngredients.some(ing => ing.includes(d)))) dislikePenalty += 1
+                    }
+
+                    if (hasAllergy) return -999
+
+                    let score = 0
+                    for (const tag of preferredTags) {
+                      if (r.tags.includes(tag)) score += 2
+                    }
+                    for (const tag of r.tags) {
+                      if (currentUsedTags.has(tag)) score -= 0.5 
+                    }
+                    return score - dislikePenalty
+                  }
+
                   // Score & sort — pick from top-score tier (all with max score)
                   const scored: Array<{ r: Recipe; score: number }> = pool
-                    .map((r: Recipe) => ({ r, score: scoreRecipe(r) }))
-                    .filter(({ score }: { r: Recipe; score: number }) => score >= 0)
+                    .map((r: Recipe) => ({ r, score: scoreRecipeForSlot(r, usedTags) }))
+                    .filter(({ score }: { r: Recipe; score: number }) => score > -500)
                     .sort((a: { r: Recipe; score: number }, b: { r: Recipe; score: number }) => b.score - a.score)
 
                   const topScore = scored[0]?.score ?? 0
@@ -323,7 +369,10 @@ export const useAppStore = create<AppStore>()(
                   const finalPool = topTier.length > 0 ? topTier : pool
 
                   const chosen = finalPool[Math.floor(Math.random() * finalPool.length)]
-                  if (chosen) usedRecipeIds.add(chosen.id)
+                  if (chosen) {
+                    usedRecipeIds.add(chosen.id)
+                    chosen.tags.forEach((t: string) => usedTags.add(t))
+                  }
                   return chosen ? { ...slot, recipeId: chosen.id } : slot
                 }),
               },
@@ -385,6 +434,25 @@ export const useAppStore = create<AppStore>()(
       
       // Data Source & Subscription
       dataSource: null,
+      acceptDataSourceConsent: (sourceName: string, householdId: string) => set({
+        dataSource: {
+          id: `ds-${Date.now()}`,
+          householdId,
+          sourceName,
+          isActive: true,
+          consentAcceptedAt: new Date().toISOString(),
+          lastSyncedAt: null,
+          syncStatus: 'a-aguardar'
+        }
+      }),
+      markDataSourceSynced: () => set((state: AppStore) => ({
+        dataSource: state.dataSource ? {
+          ...state.dataSource,
+          syncStatus: 'sincronizado',
+          lastSyncedAt: new Date().toISOString()
+        } : null
+      })),
+      clearDataSource: () => set({ dataSource: null }),
       subscription: {
         id: 'sub-001',
         householdId: 'hh-001',
@@ -393,7 +461,6 @@ export const useAppStore = create<AppStore>()(
         endsAt: new Date(new Date().setDate(new Date().getDate() + 6)).toISOString(),  // Ends in 6 days
         isActive: true,
       },
-      setDataSource: (source: DataSourceConnection | null) => set({ dataSource: source }),
       setSubscription: (sub: SubscriptionPeriod | null) => set({ subscription: sub }),
       
       // Participation
@@ -447,7 +514,7 @@ export const useAppStore = create<AppStore>()(
             ing.id === ingredientId ? { 
               ...ing, 
               memberIds, 
-              compatibilityType: memberIds.length === 0 ? 'excluído' : 'específico' 
+              compatibilityType: memberIds.length === 0 ? 'comum' : 'específico' 
             } : ing
           ),
           members: state.members.map((m) => {
@@ -482,7 +549,7 @@ export const useAppStore = create<AppStore>()(
             ingredients: state.ingredients.map((ing: any) =>
               ing.id === ingredientId ? {
                 ...ing,
-                memberIds: state.members.filter((m: any) => !memberIds.includes(m.id)).map((m: any) => m.id),
+                memberIds,
                 compatibilityType: memberIds.length > 0 ? 'excluído' : 'comum'
               } : ing
             ),
@@ -525,8 +592,8 @@ export const useAppStore = create<AppStore>()(
             const baseQty = parseFloat(ri.quantity) || 0
             
             // Calculate total quantity based on participants and their portion factors
-            const participants = state.members.filter(m => slot.participantIds.includes(m.id))
-            const totalFactor = participants.reduce((acc, m) => acc + (m.portionFactor || 1), 0)
+            const participants = state.members.filter((m: any) => slot.participantIds.includes(m.id))
+            const totalFactor = participants.reduce((acc: number, m: any) => acc + (m.type === 'criança' ? 0.75 : 1.0), 0)
             const finalQty = baseQty * totalFactor
 
             // Grouping logic (simplified)

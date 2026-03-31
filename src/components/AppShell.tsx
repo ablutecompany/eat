@@ -14,6 +14,7 @@ import IngredientsScreen from './screens/IngredientsScreen'
 import ShoppingScreen from './screens/ShoppingScreen'
 import HouseholdScreen from './screens/HouseholdScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import OnboardingScreen from './screens/OnboardingScreen'
 
 const SCREENS: Record<string, React.ComponentType> = {
   plano: PlanScreen,
@@ -25,8 +26,12 @@ const SCREENS: Record<string, React.ComponentType> = {
 }
 
 export default function AppShell() {
-  const { activeTab } = useAppStore()
+  const { activeTab, onboardingComplete } = useAppStore()
   const ActiveScreen = SCREENS[activeTab] || PlanScreen
+
+  if (!onboardingComplete) {
+    return <OnboardingScreen />
+  }
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[#faf9f8]" style={{ maxWidth: 430, margin: '0 auto' }}>
