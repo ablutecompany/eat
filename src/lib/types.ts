@@ -234,6 +234,7 @@ export interface AppState {
   activeTab: string
   isRegenerating: boolean
   toastMessage: string | null
+  highlightedSlotId: string | null
   
   // New: Data Source & Subscription
   dataSource: DataSourceConnection | null

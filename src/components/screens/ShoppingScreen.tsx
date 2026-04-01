@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { Search, Home, Minus, Plus as PlusIcon, X, Check, ShoppingCart } from 'lucide-react'
+import { Search, Home, Minus, Plus as PlusIcon, X, Check, ShoppingCart, Link } from 'lucide-react'
 import { ShoppingCategory, ShoppingItem } from '@/lib/types'
 import CheckoutDrawer from '../CheckoutDrawer'
 
@@ -42,6 +42,9 @@ export default function ShoppingScreen() {
   const {
     shoppingItems,
     members,
+    currentPlan,
+    recipes,
+    subscription,
     toggleShoppingItem,
     checkAllShoppingItems,
     setPantryQuantity,
@@ -51,16 +54,81 @@ export default function ShoppingScreen() {
   const [pantryItem, setPantryItem] = useState<ShoppingItem | null>(null)
   const [pantryInput, setPantryInput] = useState('')
   const [showCheckout, setShowCheckout] = useState(false)
+  const [filterSubgroup, setFilterSubgroup] = useState(false)
 
   const getMemberColor = (id: string) => members.find((m) => m.id === id)?.color || '#b0b2b1'
   const getMemberName = (id: string) => members.find((m) => m.id === id)?.name || ''
+  const isSourceLinked = (id: string) => members.find((m) => m.id === id)?.sourceOrigin === 'ablute_wellness'
+
+  const startDate = new Date(subscription?.startsAt || new Date())
+  const getDayLabel = (index: number) => {
+    const d = new Date(startDate)
+    d.setDate(d.getDate() + index)
+    if (d.toDateString() === new Date().toDateString()) return 'Hoje'
+    const amanha = new Date()
+    amanha.setDate(amanha.getDate() + 1)
+    if (d.toDateString() === amanha.toDateString()) return 'Amanhã'
+    
+    let wday = d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '').replace('-feira', '')
+    return wday.charAt(0).toUpperCase() + wday.slice(1)
+  }
+
+  const getSlotLabel = (slot: any) => {
+    const dayName = getDayLabel(slot.day)
+    let mealName = ''
+    if (slot.mealType === 'pequeno-almoço') mealName = 'Pequeno-almoço'
+    else if (slot.mealType === 'almoço') mealName = 'Almoço'
+    else if (slot.mealType === 'jantar') mealName = 'Jantar'
+    else if (slot.mealType === 'snack') mealName = 'Snack'
+    return `${dayName} · ${mealName}`
+  }
+
+  const getOriginLines = (itemRecipes: string[]) => {
+    const originSlots: any[] = []
+    itemRecipes.forEach(title => {
+      const rx = recipes.find(r => r.title === title)
+      if (rx) {
+        const match = currentPlan.slots.filter(s => s.recipeId === rx.id)
+        originSlots.push(...match)
+      }
+    })
+    originSlots.sort((a,b) => a.day - b.day)
+    
+    if (originSlots.length === 0) return { main: `${itemRecipes.length} refeição${itemRecipes.length > 1 ? 'ões' : ''}`, extra: [] }
+    
+    if (originSlots.length === 1) {
+      return { main: getSlotLabel(originSlots[0]), extra: [getSlotLabel(originSlots[0])] }
+    } else if (originSlots.length === 2) {
+      return { 
+        main: `${getSlotLabel(originSlots[0])} + 1 refeição`, 
+        extra: originSlots.map(getSlotLabel) 
+      }
+    } else {
+      return { 
+        main: `${getSlotLabel(originSlots[0])} + ${originSlots.length - 1} refeições`, 
+        extra: originSlots.map(getSlotLabel) 
+      }
+    }
+  }
+
+  const [expandedOrigins, setExpandedOrigins] = useState<string[]>([])
+  const toggleOrigin = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpandedOrigins(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
 
   const filtered = useMemo(() => {
-    if (!search) return shoppingItems
-    return shoppingItems.filter((item) =>
-      item.name.toLowerCase().includes(search.toLowerCase())
-    )
-  }, [shoppingItems, search])
+    let result = shoppingItems
+    if (filterSubgroup) {
+      result = result.filter(i => i.relationType !== 'comum')
+    }
+    if (search) {
+      result = result.filter((item) =>
+        item.name.toLowerCase().includes(search.toLowerCase())
+      )
+    }
+    return result
+  }, [shoppingItems, search, filterSubgroup])
 
   const selectedCount = shoppingItems.filter((i) => i.checked).length
   const totalCount = shoppingItems.length
@@ -96,41 +164,46 @@ export default function ShoppingScreen() {
         <h1 className="text-2xl font-display font-bold text-[#303333] leading-tight">
           Lista de Compras
         </h1>
-        <div className="flex items-center justify-between mt-1">
-          {/* Counter — "para comprar" framing */}
-          <p className="text-sm text-[#5d605f]">
-            {selectedCount > 0 ? (
-              <>
-                <span className="font-semibold text-[#446656]">{selectedCount}</span>
-                {' '}de {totalCount} para comprar
-              </>
-            ) : (
-              `${totalCount} itens na lista`
-            )}
-          </p>
+        <div className="flex flex-col gap-2.5 mt-1">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[#5d605f]">
+              <span className="font-semibold text-[#446656]">{totalCount}</span> itens
+              {shoppingItems.filter(i => i.relationType !== 'comum').length > 0 && ` · ${shoppingItems.filter(i => i.relationType !== 'comum').length} para subgrupo`}
+            </p>
 
-          {/* Select-all / Deselect-all */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => checkAllShoppingItems(!allSelected)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
-              allSelected
-                ? 'bg-[#446656] text-white'
-                : 'bg-white text-[#5d605f] shadow-ambient'
-            }`}
-          >
-            {allSelected ? (
-              <>
-                <X size={11} />
-                Desselecionar todos
-              </>
-            ) : (
-              <>
-                <ShoppingCart size={11} />
-                Selecionar todos
-              </>
-            )}
-          </motion.button>
+            {/* Select-all / Deselect-all */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => checkAllShoppingItems(!allSelected)}
+              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 rounded transition-all flex items-center gap-1.5 ${
+                allSelected
+                  ? 'bg-[#446656] text-white shadow-sm'
+                  : 'bg-white text-[#5d605f] shadow-ambient border border-[#e1e3e2]/60'
+              }`}
+            >
+              {allSelected ? (
+                <>
+                  <X size={11} strokeWidth={3} />
+                  Limpar seleção
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={11} strokeWidth={3} />
+                  Selecionar tudo
+                </>
+              )}
+            </motion.button>
+          </div>
+          {shoppingItems.filter(i => i.relationType !== 'comum').length > 0 && (
+            <div className="flex items-center">
+              <button 
+                onClick={() => setFilterSubgroup(!filterSubgroup)}
+                className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded shadow-sm transition-colors border ${filterSubgroup ? 'bg-[#c5ebd7]/80 text-[#2e6771] border-[#a6d9be]' : 'bg-white text-[#8b8d8c] border-[#e1e3e2]/50 hover:bg-[#f3f4f3]'}`}
+              >
+                {filterSubgroup ? 'Remover filtro' : 'Ocultar itens comuns'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -146,7 +219,7 @@ export default function ShoppingScreen() {
       )}
 
       {/* Search */}
-      <div className="flex items-center gap-2 bg-white rounded-2xl px-3 py-2.5 shadow-ambient mb-5">
+      <div className="flex items-center gap-2 bg-white rounded-2xl px-3 py-2.5 shadow-ambient mb-5 border border-transparent focus-within:border-[#e1e3e2]/60 transition-colors">
         <Search size={16} className="text-[#b0b2b1]" />
         <input
           type="text"
@@ -158,8 +231,18 @@ export default function ShoppingScreen() {
       </div>
 
       {/* Categories */}
-      <div className="space-y-5 mb-6">
-        {CATEGORIES.map((category) => {
+      {shoppingItems.length === 0 ? (
+        <div className="bg-[#f9fdfa] border border-[#e1e3e2]/60 rounded-3xl p-6 text-center mt-6">
+          <p className="text-[#446656] font-display font-bold text-lg mb-1">Lista Vazia</p>
+          <p className="text-[#8b8d8c] text-sm italic">O plano atual ainda não gerou compras. Adicione pratos à semana.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-10 opacity-70">
+          <p className="text-[#b0b2b1] text-sm font-medium">Nenhum item visível com estes filtros.</p>
+        </div>
+      ) : (
+        <div className="space-y-5 mb-6">
+          {CATEGORIES.map((category) => {
           const items = filtered.filter((i) => i.category === category)
           if (items.length === 0) return null
 
@@ -180,6 +263,8 @@ export default function ShoppingScreen() {
                   const rem = remaining(item)
                   const hasPantry = (item.pantryQuantity ?? 0) > 0
                   const fullyInPantry = item.inPantry || rem.value === 0
+                  const originData = getOriginLines(item.recipes)
+                  const isExpanded = expandedOrigins.includes(item.id)
 
                   return (
                     <div key={item.id}>
@@ -233,26 +318,50 @@ export default function ShoppingScreen() {
                             </span>
                           </div>
 
-                          {item.recipes.length > 0 && (
-                            <p className="text-[10px] text-[#b0b2b1] mt-0.5">
-                              {item.recipes.join(', ')}
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            {item.memberIds.map((mid) => (
-                              <div
-                                key={mid}
-                                className="px-2 py-0.5 rounded-full text-[10px] font-medium text-white"
-                                style={{ backgroundColor: getMemberColor(mid) }}
-                              >
-                                {getMemberName(mid)}
-                              </div>
-                            ))}
-                            <span className="text-[10px] text-[#5d605f] ml-1">
-                              {item.relationType === 'comum' ? 'Comum' :
-                               item.relationType === 'individual' ? 'Individual' : 'Subgrupo'}
-                            </span>
+                          <div className="flex flex-col gap-1.5 mt-1.5 justify-start">
+                             <div className="flex items-center gap-1.5 flex-wrap">
+                               {originData.extra.length > 1 ? (
+                                 <button onClick={(e) => toggleOrigin(item.id, e)} className="text-[10px] text-[#8b8d8c] font-medium italic hover:text-[#5d605f] focus:outline-none transition-colors text-left flex items-center decoration-[#e1e3e2] decoration-dotted underline underline-offset-2">
+                                   {originData.main}
+                                 </button>
+                               ) : (
+                                 <p className="text-[10px] text-[#8b8d8c] font-medium italic">
+                                   {originData.main}
+                                 </p>
+                               )}
+                               <span className="text-[10px] text-[#e1e3e2]">•</span>
+                               {item.relationType === 'comum' ? (
+                                 <span className="text-[9px] bg-[#c5ebd7]/50 text-[#446656] px-1.5 py-0.5 rounded shadow-sm font-bold uppercase tracking-wider">Todos ativos</span>
+                               ) : (
+                                 <span className="text-[9px] bg-[#f8dfc0]/60 text-[#6e5c44] px-1.5 py-0.5 rounded shadow-sm font-bold uppercase tracking-wider">Apenas parte do agregado</span>
+                               )}
+                               {item.memberIds.some(isSourceLinked) && (
+                                 <span className="text-[#2e6771] bg-[#b7effb]/30 w-4 h-4 rounded-full flex items-center justify-center ml-0.5 shadow-sm" title="Origina num perfil ligado à source">
+                                   <Link size={8} />
+                                 </span>
+                               )}
+                             </div>
+                             {isExpanded && originData.extra.length > 1 && (
+                               <div className="w-full mt-1 mb-1 flex flex-col gap-0.5">
+                                 {originData.extra.map((line, idx) => (
+                                   <span key={`ex-${idx}`} className="text-[9px] text-[#b0b2b1] font-medium tracking-wide leading-tight px-1 border-l-2 border-[#e1e3e2]/60 ml-0.5">{line}</span>
+                                 ))}
+                               </div>
+                             )}
+                             {item.relationType !== 'comum' && item.memberIds.length > 0 && (
+                               <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                 {item.memberIds.map((mid) => (
+                                   <div
+                                     key={mid}
+                                     className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shadow-sm"
+                                     style={{ backgroundColor: getMemberColor(mid) }}
+                                     title={getMemberName(mid)}
+                                   >
+                                     {getMemberName(mid)[0]}
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
                           </div>
                         </div>
 
@@ -281,7 +390,8 @@ export default function ShoppingScreen() {
             </div>
           )
         })}
-      </div>
+        </div>
+      )}
 
       {/* ===== FLOATING COMPRAR BUTTON ===== */}
       <motion.button

@@ -104,6 +104,9 @@ interface AppStore {
   showToast: (message: string) => void
   clearToast: () => void
   isRegenerating: boolean
+  highlightedSlotId: string | null
+  focusPlanSlot: (dayIndex: number, slotId: string) => void
+  clearHighlightedSlot: () => void
   
   // Data Source & Subscription
   dataSource: DataSourceConnection | null
@@ -424,16 +427,20 @@ export const useAppStore = create<AppStore>()(
       // UI
       activeTab: 'plano',
       setActiveTab: (tab: string) => set({ activeTab: tab }),
-      toastMessage: null,
+      toastMessage: null as string | null,
       showToast: (message: string) => {
         set({ toastMessage: message })
         setTimeout(() => set({ toastMessage: null }), 3000)
       },
       clearToast: () => set({ toastMessage: null }),
-      isRegenerating: false,
+      isRegenerating: false as boolean,
+      highlightedSlotId: null as string | null,
+      focusPlanSlot: (dayIndex: number, slotId: string) =>
+        set({ activeTab: 'plano', activeDayIndex: dayIndex, highlightedSlotId: slotId }),
+      clearHighlightedSlot: () => set({ highlightedSlotId: null }),
       
       // Data Source & Subscription
-      dataSource: null,
+      dataSource: null as DataSourceConnection | null,
       acceptDataSourceConsent: (sourceName: string, householdId: string) => set({
         dataSource: {
           id: `ds-${Date.now()}`,
@@ -460,7 +467,7 @@ export const useAppStore = create<AppStore>()(
         startsAt: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), // Started yesterday
         endsAt: new Date(new Date().setDate(new Date().getDate() + 6)).toISOString(),  // Ends in 6 days
         isActive: true,
-      },
+      } as SubscriptionPeriod | null,
       setSubscription: (sub: SubscriptionPeriod | null) => set({ subscription: sub }),
       
       // Participation

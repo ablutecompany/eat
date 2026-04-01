@@ -35,6 +35,8 @@ export default function PlanScreen() {
     isRegenerating,
     setSettingsOpen,
     subscription,
+    highlightedSlotId,
+    clearHighlightedSlot,
   } = useAppStore()
 
   const [swapSlot, setSwapSlot] = useState<MealSlot | null>(null)
@@ -54,6 +56,15 @@ export default function PlanScreen() {
   }
 
   const isExpired = subscription ? new Date() > new Date(subscription.endsAt) : false
+
+  useEffect(() => {
+    if (highlightedSlotId) {
+      const timer = setTimeout(() => {
+        clearHighlightedSlot()
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [highlightedSlotId, clearHighlightedSlot])
 
   useEffect(() => {
     if (subscription && !isExpired) {
@@ -226,7 +237,11 @@ export default function PlanScreen() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="bg-white rounded-3xl overflow-hidden shadow-ambient"
+                className={`rounded-3xl overflow-hidden transition-all duration-1000 ${
+                  highlightedSlotId === slot.id
+                    ? 'bg-[#f4fbf7] shadow-[0_0_0_2px_rgba(166,217,190,1)] ring-4 ring-[#f4fbf7]'
+                    : 'bg-white shadow-ambient'
+                }`}
               >
                 {/* Image */}
                 <div className="relative h-44 overflow-hidden">
